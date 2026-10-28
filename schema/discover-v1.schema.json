@@ -1,0 +1,359 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/saphan-ai/discover/schema/discover-v1.schema.json",
+  "title": "discover report, schema v1",
+  "description": "The report discover writes after a scan. Every claim carries a source; a secret is named by location and type, never by value.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "tool", "scan", "repos", "workspace_profile"],
+  "properties": {
+    "schema_version": { "const": "discover/v1" },
+    "tool": { "$ref": "#/$defs/tool" },
+    "scan": { "$ref": "#/$defs/scan" },
+    "repos": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/repo" } },
+    "workspace_profile": { "$ref": "#/$defs/workspace_profile" },
+    "extensions": { "type": "object" }
+  },
+  "$defs": {
+    "tool": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "commit"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "commit": { "type": "string", "minLength": 1 }
+      }
+    },
+    "scan": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started", "finished", "targets", "readonly_proof"],
+      "properties": {
+        "started": { "type": "string", "format": "date-time" },
+        "finished": { "type": "string", "format": "date-time" },
+        "targets": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/target" } },
+        "readonly_proof": { "$ref": "#/$defs/readonly_proof" }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "mode"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1 },
+        "mode": { "enum": ["repository", "workspace"] }
+      }
+    },
+    "readonly_proof": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["before", "after", "equal"],
+      "properties": {
+        "before": { "type": "string", "minLength": 1 },
+        "after": { "type": "string", "minLength": 1 },
+        "equal": { "type": "boolean" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["file"],
+      "properties": {
+        "file": { "type": "string", "minLength": 1, "pattern": "^[^/\\\\]" },
+        "key": { "type": "string", "minLength": 1 },
+        "line": { "type": "integer", "minimum": 1 }
+      },
+      "anyOf": [{ "required": ["key"] }, { "required": ["line"] }]
+    },
+    "repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name", "attestation", "inventory", "stack", "structure", "entry_points", "commands", "ci",
+        "containers", "wiring", "findings", "ui", "narrative", "open_questions", "recommendations", "absent"
+      ],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "attestation": { "$ref": "#/$defs/attestation" },
+        "inventory": { "$ref": "#/$defs/inventory" },
+        "stack": { "type": "array", "items": { "$ref": "#/$defs/stack_row" } },
+        "structure": { "$ref": "#/$defs/structure" },
+        "entry_points": { "type": "array", "items": { "$ref": "#/$defs/entry_point" } },
+        "commands": { "type": "array", "items": { "$ref": "#/$defs/command" } },
+        "ci": { "type": "array", "items": { "$ref": "#/$defs/ci" } },
+        "containers": { "type": "array", "items": { "$ref": "#/$defs/container" } },
+        "wiring": { "type": "array", "items": { "$ref": "#/$defs/wiring" } },
+        "findings": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/finding" },
+          "contains": { "type": "object", "properties": { "kind": { "const": "todo" } }, "required": ["kind"] },
+          "minContains": 0,
+          "maxContains": 30
+        },
+        "ui": { "type": "array", "items": { "$ref": "#/$defs/ui_item" } },
+        "narrative": { "$ref": "#/$defs/narrative" },
+        "open_questions": { "type": "array", "items": { "$ref": "#/$defs/open_question" } },
+        "recommendations": { "type": "array", "items": { "$ref": "#/$defs/recommendation" } },
+        "absent": { "type": "array", "items": { "$ref": "#/$defs/absent" } }
+      }
+    },
+    "attestation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["head", "branch", "dirty", "read_manifest"],
+      "properties": {
+        "head": { "type": ["string", "null"] },
+        "branch": { "type": ["string", "null"] },
+        "dirty": { "type": "boolean" },
+        "read_manifest": { "$ref": "#/$defs/read_manifest" }
+      }
+    },
+    "read_manifest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entries", "files_read", "bytes_read"],
+      "properties": {
+        "entries": { "type": "array", "items": { "$ref": "#/$defs/manifest_entry" } },
+        "files_read": { "type": "integer", "minimum": 0 },
+        "bytes_read": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "manifest_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "bytes"],
+      "properties": {
+        "path": { "type": "string", "minLength": 1, "pattern": "^[^/\\\\]" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "inventory": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["top_level", "languages", "files_total", "bytes_total"],
+      "properties": {
+        "top_level": { "type": "array", "items": { "$ref": "#/$defs/top_level_entry" } },
+        "languages": { "type": "array", "items": { "$ref": "#/$defs/language_share" } },
+        "files_total": { "type": "integer", "minimum": 0 },
+        "bytes_total": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "top_level_entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "kind": { "enum": ["file", "dir", "symlink", "other"] }
+      }
+    },
+    "language_share": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "files"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "files": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "stack_row": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["layer", "technology", "version", "source"],
+      "properties": {
+        "layer": { "type": "string", "minLength": 1 },
+        "technology": { "type": "string", "minLength": 1 },
+        "version": { "type": ["string", "null"] },
+        "version_note": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" }
+      },
+      "if": { "properties": { "version": { "type": "null" } }, "required": ["version"] },
+      "then": { "required": ["version_note"], "properties": { "version_note": { "const": "not pinned" } } },
+      "else": { "not": { "required": ["version_note"] } }
+    },
+    "structure": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["patterns", "naming", "architecture"],
+      "properties": {
+        "patterns": { "type": "array", "items": { "$ref": "#/$defs/observation" } },
+        "naming": { "type": "array", "items": { "$ref": "#/$defs/observation" } },
+        "architecture": { "type": "array", "items": { "$ref": "#/$defs/observation" } }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "examples"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "examples": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" } }
+      }
+    },
+    "entry_point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "name", "source"],
+      "properties": {
+        "kind": { "enum": ["main", "cli", "server", "worker", "library", "script", "other"] },
+        "name": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "text", "source", "executed"],
+      "properties": {
+        "kind": { "enum": ["build", "run", "test", "lint"] },
+        "text": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" },
+        "executed": { "const": false }
+      }
+    },
+    "ci": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system", "source"],
+      "properties": {
+        "system": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "container": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "source"],
+      "properties": {
+        "kind": { "enum": ["dockerfile", "compose", "kubernetes", "other"] },
+        "image": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "wiring": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "relation", "source"],
+      "properties": {
+        "target": { "type": "string", "minLength": 1 },
+        "relation": { "enum": ["depends_on", "depended_on_by", "calls", "called_by", "shares"] },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "severity", "source"],
+      "properties": {
+        "kind": { "enum": ["hot_spot", "anti_pattern", "secret", "dead_code_candidate", "todo", "prompt_injection"] },
+        "severity": { "enum": ["info", "low", "medium", "high"] },
+        "source": { "$ref": "#/$defs/source" },
+        "text": { "type": "string", "minLength": 1 },
+        "secret_type": { "type": "string", "minLength": 1 }
+      },
+      "if": { "properties": { "kind": { "const": "secret" } }, "required": ["kind"] },
+      "then": { "required": ["secret_type"], "not": { "required": ["text"] } },
+      "else": { "not": { "required": ["secret_type"] } }
+    },
+    "ui_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "text", "source"],
+      "properties": {
+        "kind": { "enum": ["string", "screen"] },
+        "text": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    },
+    "narrative": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claims"],
+      "properties": {
+        "model": { "type": "string", "minLength": 1 },
+        "claims": { "type": "array", "items": { "$ref": "#/$defs/claim" } }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "citations"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "citations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" } }
+      }
+    },
+    "open_question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["topic", "question", "context", "options"],
+      "properties": {
+        "topic": { "type": "string", "minLength": 1 },
+        "question": { "type": "string", "minLength": 1 },
+        "context": { "$ref": "#/$defs/source" },
+        "options": { "type": "array", "minItems": 2, "maxItems": 3, "items": { "type": "string", "minLength": 1 } }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "citations"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "citations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" } }
+      }
+    },
+    "absent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section", "reason"],
+      "properties": {
+        "section": { "type": "integer", "minimum": 1, "maximum": 10 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    },
+    "workspace_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repos"],
+      "properties": {
+        "repos": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/profile_repo" } }
+      }
+    },
+    "profile_repo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "relative_path", "vcs", "languages", "commands", "convention_files", "ci"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "relative_path": { "type": "string", "pattern": "^[^/\\\\]" },
+        "vcs": { "enum": ["git", "none"] },
+        "languages": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "commands": { "$ref": "#/$defs/profile_commands" },
+        "convention_files": { "type": "array", "items": { "type": "string", "pattern": "^[^/\\\\]" } },
+        "ci": { "type": "array", "items": { "$ref": "#/$defs/ci" } }
+      }
+    },
+    "profile_commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["build", "test", "run"],
+      "properties": {
+        "build": { "type": "array", "items": { "$ref": "#/$defs/profile_command" } },
+        "test": { "type": "array", "items": { "$ref": "#/$defs/profile_command" } },
+        "run": { "type": "array", "items": { "$ref": "#/$defs/profile_command" } }
+      }
+    },
+    "profile_command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "source"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" }
+      }
+    }
+  }
+}
