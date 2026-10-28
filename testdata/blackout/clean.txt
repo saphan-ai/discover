@@ -1,0 +1,4 @@
+first line
+second line
+a line that names the trailer mid-line, like `Co-Authored-By`, is allowed
+a path such as /usr/local/bin is not a home path
