@@ -1,0 +1,71 @@
+{
+  "schema_version": "discover/v1",
+  "tool": { "name": "discover", "version": "0.1.0", "commit": "abc1234" },
+  "scan": {
+    "started": "2026-10-28T11:00:00Z",
+    "finished": "2026-10-28T11:02:00Z",
+    "targets": [{ "path": ".", "mode": "repository" }],
+    "readonly_proof": { "before": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "after": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "equal": true }
+  },
+  "repos": [
+    {
+      "name": "tool",
+      "attestation": {
+        "head": "1a2b3c4",
+        "branch": "main",
+        "dirty": false,
+        "read_manifest": {
+          "entries": [{ "path": "README.md", "sha256": "5555555555555555555555555555555555555555555555555555555555555555", "bytes": 800 }],
+          "files_read": 1,
+          "bytes_read": 800
+        }
+      },
+      "inventory": { "top_level": [{ "name": "README.md", "kind": "file" }], "languages": [{ "name": "Markdown", "files": 1 }], "files_total": 1, "bytes_total": 800 },
+      "stack": [],
+      "structure": { "patterns": [], "naming": [], "architecture": [] },
+      "entry_points": [],
+      "commands": [],
+      "ci": [],
+      "containers": [],
+      "wiring": [],
+      "findings": [
+        { "kind": "prompt_injection", "severity": "medium", "source": { "file": "README.md", "line": 14 }, "text": "the text asks a reader to ignore earlier instructions" }
+      ],
+      "ui": [],
+      "narrative": {
+        "model": "example-model",
+        "claims": [
+          {
+            "text": "The repository is documentation only.",
+            "citations": [{ "file": "README.md", "line": 1 }, { "file": "README.md", "line": 20 }]
+          }
+        ]
+      },
+      "open_questions": [],
+      "recommendations": [],
+      "absent": [
+        { "section": 2, "reason": "no manifest or build file was found" },
+        { "section": 3, "reason": "no source files were found" },
+        { "section": 4, "reason": "no entry points were found" },
+        { "section": 5, "reason": "no commands were found" },
+        { "section": 6, "reason": "no dependency declarations were found" },
+        { "section": 8, "reason": "no user interface strings were found" },
+        { "section": 9, "reason": "nothing was found to ask about" },
+        { "section": 10, "reason": "nothing was found to recommend" }
+      ]
+    }
+  ],
+  "workspace_profile": {
+    "repos": [
+      {
+        "name": "tool",
+        "relative_path": ".",
+        "vcs": "git",
+        "languages": [],
+        "commands": { "build": [], "test": [], "run": [] },
+        "convention_files": [],
+        "ci": []
+      }
+    ]
+  }
+}
