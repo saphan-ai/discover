@@ -1,0 +1,6 @@
+/bin/
+/dist/
+/.saphan/
+/.provision/
+/.saphan-guardrail/
+/_EXEC_*
