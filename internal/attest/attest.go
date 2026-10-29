@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -354,6 +355,84 @@ func digestList(root *safepath.Root, rels []string, oidLen int) (Tree, map[strin
 
 // ---- git ----
 
+// gitEnv is the environment of every git call: the caller's, with every GIT_* variable removed, because a caller with
+// GIT_DIR set (a git hook, many CI steps) would otherwise make git read another repository, and GIT_CONFIG_* would
+// make it obey another configuration. The scan's own settings follow: no optional lock, no prompt, no lazy fetch from
+// a promisor remote (which would run what the target's configuration names), and a ceiling at the parent of root so
+// git never discovers a repository above it.
+func gitEnv(caller []string, root string) []string {
+	env := make([]string, 0, len(caller)+4)
+	for _, kv := range caller {
+		if !strings.HasPrefix(strings.ToUpper(kv), "GIT_") {
+			env = append(env, kv)
+		}
+	}
+	return append(env, "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0", "GIT_NO_LAZY_FETCH=1",
+		"GIT_CEILING_DIRECTORIES="+filepath.Dir(root))
+}
+
+// minGitMajor and minGitMinor are the first git that honours GIT_NO_LAZY_FETCH.
+const (
+	minGitMajor = 2
+	minGitMinor = 45
+)
+
+// parseGitVersion reads the output of `git version`: "git version 2.50.1 (Apple Git-155)" gives "2.50.1", 2, 50.
+func parseGitVersion(out string) (ver string, major, minor int, ok bool) {
+	f := strings.Fields(out)
+	if len(f) < 3 || f[0] != "git" || f[1] != "version" {
+		return "", 0, 0, false
+	}
+	ver = f[2]
+	nums := strings.SplitN(ver, ".", 3)
+	if len(nums) < 2 {
+		return "", 0, 0, false
+	}
+	var err error
+	if major, err = strconv.Atoi(leadingDigits(nums[0])); err != nil {
+		return "", 0, 0, false
+	}
+	if minor, err = strconv.Atoi(leadingDigits(nums[1])); err != nil {
+		return "", 0, 0, false
+	}
+	return ver, major, minor, true
+}
+
+func leadingDigits(s string) string {
+	n := 0
+	for n < len(s) && s[n] >= '0' && s[n] <= '9' {
+		n++
+	}
+	return s[:n]
+}
+
+// checkGit refuses a git that would fetch, and a root git does not accept as the top of a repository.
+func checkGit(root string, opts Options) error {
+	out, err := runGit(root, opts, "version")
+	if err != nil {
+		return err
+	}
+	ver, major, minor, ok := parseGitVersion(string(out))
+	if !ok {
+		return fmt.Errorf("cannot read the git version from %q", strings.TrimSpace(string(out)))
+	}
+	if major < minGitMajor || (major == minGitMajor && minor < minGitMinor) {
+		return fmt.Errorf("git %d.%d or newer is required to read a repository without letting it fetch; found %s",
+			minGitMajor, minGitMinor, ver)
+	}
+	top, err := runGit(root, opts, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return fmt.Errorf("%s: a .git entry is present but git does not accept it as a repository; git mode refused",
+			filepath.Base(root))
+	}
+	tfi, terr := os.Stat(strings.TrimSpace(string(top)))
+	rfi, rerr := os.Stat(root)
+	if terr != nil || rerr != nil || !os.SameFile(tfi, rfi) {
+		return fmt.Errorf("%s: git resolves this directory to another repository; git mode refused", filepath.Base(root))
+	}
+	return nil
+}
+
 // runGit runs one git call under a deadline. A call that overruns it is killed and the error names the call.
 func runGit(root string, opts Options, args ...string) ([]byte, error) {
 	bin := opts.GitBin
@@ -369,7 +448,7 @@ func runGit(root string, opts Options, args ...string) ([]byte, error) {
 	full := append([]string{"-C", root, "-c", "core.fsmonitor=false", "--no-optional-locks"}, args...)
 	cmd := exec.CommandContext(ctx, bin, full...)
 	cmd.WaitDelay = time.Second
-	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
+	cmd.Env = gitEnv(os.Environ(), root)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	err := cmd.Run()
@@ -428,6 +507,9 @@ func parseEntries(b []byte, tree bool) (map[string]gitEntry, []string, error) {
 }
 
 func attestGit(root string, r *safepath.Root, opts Options, a *Attestation) error {
+	if err := checkGit(root, opts); err != nil {
+		return err
+	}
 	g := &GitState{}
 	if out, err := runGit(root, opts, "rev-parse", "--verify", "-q", "HEAD"); err == nil {
 		g.Head = strings.TrimSpace(string(out))

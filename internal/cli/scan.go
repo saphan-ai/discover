@@ -33,6 +33,7 @@ var betweenPasses = func(root string) {}
 
 type proof struct {
 	Status  string   `json:"status"`
+	Scope   string   `json:"scope"`
 	Before  string   `json:"before"`
 	After   string   `json:"after"`
 	Changed []string `json:"changed,omitempty"`
@@ -114,14 +115,29 @@ func scan(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
+	// Every output directory is fixed, and checked against every target, before anything is read or written.
 	used := map[string]bool{}
-	code := ExitOK
-	for _, t := range targets {
-		dir := outAbs
+	dirs := make([]string, len(targets))
+	for i, t := range targets {
+		dirs[i] = outAbs
 		if len(targets) > 1 {
-			dir = filepath.Join(outAbs, freeName(used, t.label))
+			dirs[i] = filepath.Join(outAbs, freeName(used, t.label))
 		}
-		c, err := scanOne(t, dir, attest.Options{RecordRoot: *recordRoot, GitTimeout: *gitTimeout}, stdout)
+	}
+	for i, t := range targets {
+		for _, o := range targets {
+			if inside(dirs[i], o.real) {
+				fmt.Fprintf(stderr, "discover scan: refused: the output directory of target %q lies inside the target %q; "+
+					"nothing was read or written. Choose an --out directory whose per-target directories are outside every target.\n",
+					t.label, o.label)
+				return ExitUsage
+			}
+		}
+	}
+
+	code := ExitOK
+	for i, t := range targets {
+		c, err := scanOne(t, dirs[i], attest.Options{RecordRoot: *recordRoot, GitTimeout: *gitTimeout}, stdout)
 		if err != nil {
 			fmt.Fprintf(stderr, "discover scan: %q: %v\n", t.label, err)
 			return ExitUsage
@@ -147,8 +163,12 @@ func scanOne(t target, outDir string, opts attest.Options, stdout io.Writer) (in
 	}
 	diffs := attest.Compare(before, after)
 
+	scope := scopePlain
+	if before.Mode == attest.ModeGit {
+		scope = scopeGit
+	}
 	doc := attestationDoc{Schema: attestSchema, Attestation: before,
-		Proof: proof{Status: "EQUAL", Before: before.Tree.Digest, After: after.Tree.Digest}}
+		Proof: proof{Status: "EQUAL", Scope: scope, Before: before.Tree.Digest, After: after.Tree.Digest}}
 	if len(diffs) > 0 {
 		doc.Proof.Status = "NOT-EQUAL"
 		for _, d := range diffs {
@@ -191,10 +211,6 @@ func scanOne(t target, outDir string, opts attest.Options, stdout io.Writer) (in
 		fmt.Fprintf(stdout, "untracked: %d files  digest: %s\n", u.Files, u.Digest)
 	}
 	if len(diffs) == 0 {
-		scope := scopePlain
-		if before.Mode == attest.ModeGit {
-			scope = scopeGit
-		}
 		fmt.Fprintf(stdout, "read-only proof: EQUAL %s %s\n", before.Tree.Digest, scope)
 		return ExitOK, nil
 	}
