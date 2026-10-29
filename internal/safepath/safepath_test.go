@@ -147,4 +147,3 @@ func TestTheOpenItselfRefusesAParentThatLeavesTheRoot(t *testing.T) {
 		t.Fatalf("the swap did not take effect (%q, %v): the test proved nothing", b, err)
 	}
 }
-
