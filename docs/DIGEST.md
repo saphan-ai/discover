@@ -57,6 +57,8 @@ one name per line). Every other name, including a space, a quote, a backslash an
   A tracked path that is missing from the working tree is `unreadable`.
   Files that are untracked and not ignored (`git ls-files --others --exclude-standard`) get a second digest, the
   *untracked* digest, reported separately. Ignored files are in neither.
+  A `.git` file at the root that points at another git directory (a linked worktree or a submodule) is read as git
+  reads it: the HEAD and the branch reported are the ones the pointer leads to, not those of a repository above.
 
 `discover` compares both digests at the end of a scan. In git mode it also compares the HEAD commit, the branch, and
 the number of dirty paths.
@@ -183,6 +185,11 @@ a partial clone's remote, which can name a program, is never contacted), and git
 target for a repository. Git older than 2.45 does not honour the no-fetch switch, so git mode refuses it by name
 instead of reading without the guarantee. Several targets are written to `<out>/<label>`; a scan whose `<out>/<label>`
 is a target or lies inside one is refused before anything is read.
+
+`discover` never writes through a symbolic link. If a per-target output directory, or `READ_MANIFEST.json` or
+`ATTESTATION.json` in it, already exists and is a link (or is not a directory, or not a regular file), the scan is
+refused by name before anything is read, wherever the link points; remove it and run again. The two files are written
+through a handle opened on the output directory, so a link that appears later cannot take a write out of it.
 
 One check runs only on some hosts: the test that an `--out` spelled with another letter case is refused needs a
 case-insensitive file system (the macOS default) and is skipped elsewhere, so CI on Linux does not run it. The
