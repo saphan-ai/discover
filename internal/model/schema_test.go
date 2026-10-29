@@ -360,7 +360,59 @@ func TestValidateRefusesNotJSON(t *testing.T) {
 	}
 }
 
-// goPaths lists `path type required` for every JSON field the Go type declares.
+// The value rules a Go struct tag and a schema node can both carry, by their tag name and their keyword. Array
+// rules bound the array itself; the others bound a scalar, or each element of an array of scalars.
+var (
+	arrayRules  = [][2]string{{"minItems", "minItems"}, {"maxItems", "maxItems"}}
+	scalarRules = [][2]string{{"enum", "enum"}, {"pattern", "pattern"}, {"const", "const"}, {"min", "minimum"},
+		{"max", "maximum"}, {"minLen", "minLength"}, {"format", "format"}}
+)
+
+// ruleText renders the rules a lookup finds as one sorted string, ` rules[k=v ...]`; no rule is the empty string.
+func ruleText(rules [][2]string, lookup func(goName, keyword string) (string, bool)) string {
+	var parts []string
+	for _, r := range rules {
+		v, ok := lookup(r[0], r[1])
+		if !ok {
+			continue
+		}
+		if r[0] == "enum" {
+			vs := strings.Split(v, "|")
+			sort.Strings(vs)
+			v = strings.Join(vs, "|")
+		}
+		parts = append(parts, r[1]+"="+v)
+	}
+	if len(parts) == 0 {
+		return ""
+	}
+	sort.Strings(parts)
+	return " rules[" + strings.Join(parts, " ") + "]"
+}
+
+func tagRules(tag reflect.StructTag, rules [][2]string) string {
+	return ruleText(rules, func(goName, _ string) (string, bool) { return tag.Lookup(goName) })
+}
+
+func nodeRules(n map[string]any, rules [][2]string) string {
+	return ruleText(rules, func(_, keyword string) (string, bool) {
+		v, ok := n[keyword]
+		if !ok {
+			return "", false
+		}
+		if list, isList := v.([]any); isList {
+			var s []string
+			for _, e := range list {
+				s = append(s, fmt.Sprint(e))
+			}
+			return strings.Join(s, "|"), true
+		}
+		return fmt.Sprint(v), true
+	})
+}
+
+// goPaths lists `path type required rules` for every JSON field the Go type declares. The rules are the struct
+// tags that carry the schema's value rules (enum, pattern, const, min, max, minLen, minItems, maxItems, format).
 func goPaths(t reflect.Type, prefix string, out *[]string) {
 	for i := 0; i < t.NumField(); i++ {
 		f := t.Field(i)
@@ -375,12 +427,16 @@ func goPaths(t reflect.Type, prefix string, out *[]string) {
 			ft = ft.Elem() // an optional pointer is absent, never null: the schema types it as the pointee
 		}
 		typ := goType(ft)
-		*out = append(*out, fmt.Sprintf("%s %s %s", path, typ, req))
-		goDescend(ft, path, out)
+		rules := tagRules(f.Tag, scalarRules)
+		if ft.Kind() == reflect.Slice {
+			rules = tagRules(f.Tag, arrayRules)
+		}
+		*out = append(*out, fmt.Sprintf("%s %s %s%s", path, typ, req, rules))
+		goDescend(ft, path, f.Tag, out)
 	}
 }
 
-func goDescend(ft reflect.Type, path string, out *[]string) {
+func goDescend(ft reflect.Type, path string, tag reflect.StructTag, out *[]string) {
 	if ft.Kind() == reflect.Ptr {
 		ft = ft.Elem()
 	}
@@ -388,8 +444,12 @@ func goDescend(ft reflect.Type, path string, out *[]string) {
 	case reflect.Struct:
 		goPaths(ft, path+".", out)
 	case reflect.Slice:
-		*out = append(*out, fmt.Sprintf("%s[] %s", path, goType(ft.Elem())))
-		goDescend(ft.Elem(), path+"[]", out)
+		rules := ""
+		if ft.Elem().Kind() != reflect.Struct {
+			rules = tagRules(tag, scalarRules) // on a slice of scalars the tag's other rules bound each element
+		}
+		*out = append(*out, fmt.Sprintf("%s[] %s%s", path, goType(ft.Elem()), rules))
+		goDescend(ft.Elem(), path+"[]", tag, out)
 	}
 }
 
@@ -463,7 +523,11 @@ func (w *schemaWalker) object(n map[string]any, prefix string) {
 		if req[name] {
 			r = "required"
 		}
-		w.out = append(w.out, fmt.Sprintf("%s %s %s", path, schemaType(p), r))
+		rules := nodeRules(p, scalarRules)
+		if schemaType(p) == "array" {
+			rules = nodeRules(p, arrayRules)
+		}
+		w.out = append(w.out, fmt.Sprintf("%s %s %s%s", path, schemaType(p), r, rules))
 		w.descend(p, path)
 	}
 }
@@ -476,9 +540,37 @@ func (w *schemaWalker) descend(p map[string]any, path string) {
 		}
 	case "array":
 		it := w.resolve(p["items"].(map[string]any))
-		w.out = append(w.out, fmt.Sprintf("%s[] %s", path, schemaType(it)))
+		rules := ""
+		if schemaType(it) != "object" && schemaType(it) != "array" {
+			rules = nodeRules(it, scalarRules)
+		}
+		w.out = append(w.out, fmt.Sprintf("%s[] %s%s", path, schemaType(it), rules))
 		w.descend(it, path+"[]")
 	}
+}
+
+// fieldPathDrift compares the Go type with the schema document: every field path, with its type, whether it is
+// required, and its value rules. It returns the lines only the Go side has and the lines only the schema has.
+func fieldPathDrift(goType reflect.Type, doc map[string]any) (compared int, onlyGo, onlySchema []string) {
+	w := &schemaWalker{defs: doc["$defs"].(map[string]any)}
+	w.object(doc, "")
+	var goList []string
+	goPaths(goType, "", &goList)
+	only := func(a, b []string) []string {
+		in := map[string]bool{}
+		for _, s := range b {
+			in[s] = true
+		}
+		var d []string
+		for _, s := range a {
+			if !in[s] {
+				d = append(d, s)
+			}
+		}
+		sort.Strings(d)
+		return d
+	}
+	return len(goList), only(goList, w.out), only(w.out, goList)
 }
 
 func TestGoTypesAndSchemaDeclareTheSameFields(t *testing.T) {
@@ -486,30 +578,67 @@ func TestGoTypesAndSchemaDeclareTheSameFields(t *testing.T) {
 	if err := json.Unmarshal(readFile(t, schemaPath), &doc); err != nil {
 		t.Fatal(err)
 	}
-	w := &schemaWalker{defs: doc["$defs"].(map[string]any)}
-	w.object(doc, "")
-	var goList []string
-	goPaths(reflect.TypeOf(model.Report{}), "", &goList)
-	sort.Strings(goList)
-	sort.Strings(w.out)
-	if !reflect.DeepEqual(goList, w.out) {
-		only := func(a, b []string) []string {
-			in := map[string]bool{}
-			for _, s := range b {
-				in[s] = true
-			}
-			var d []string
-			for _, s := range a {
-				if !in[s] {
-					d = append(d, s)
-				}
-			}
-			return d
+	n, onlyGo, onlySchema := fieldPathDrift(reflect.TypeOf(model.Report{}), doc)
+	if len(onlyGo) > 0 || len(onlySchema) > 0 {
+		t.Fatalf("the Go types and the schema drifted\n only in Go: %v\n only in schema: %v", onlyGo, onlySchema)
+	}
+	if n < 100 {
+		t.Fatalf("only %d field paths compared; the walker is not reaching the nested objects", n)
+	}
+	t.Logf("%d field paths (name, type, required, value rules) are equal in the Go types and the schema", n)
+}
+
+// The comparison above must be able to fail on a value rule: a pattern, an enum, a bound or a count that differs
+// between a Go tag and the schema turns it red, each mutated alone.
+func TestFieldPathComparisonSeesValueRuleDrift(t *testing.T) {
+	load := func() map[string]any {
+		var doc map[string]any
+		if err := json.Unmarshal(readFile(t, schemaPath), &doc); err != nil {
+			t.Fatal(err)
 		}
-		t.Fatalf("the Go types and the schema drifted\n only in Go: %v\n only in schema: %v", only(goList, w.out), only(w.out, goList))
+		return doc
 	}
-	if len(goList) < 100 {
-		t.Fatalf("only %d field paths compared; the walker is not reaching the nested objects", len(goList))
+	def := func(doc map[string]any, name string) map[string]any {
+		return doc["$defs"].(map[string]any)[name].(map[string]any)
 	}
-	t.Logf("%d field paths (name, type, required) are equal in the Go types and the schema", len(goList))
+	prop := func(doc map[string]any, d, p string) map[string]any {
+		return def(doc, d)["properties"].(map[string]any)[p].(map[string]any)
+	}
+	for name, edit := range map[string]func(map[string]any){
+		"pattern removed from convention_files items": func(d map[string]any) {
+			delete(prop(d, "profile_repo", "convention_files")["items"].(map[string]any), "pattern")
+		},
+		"enum value added to finding.severity": func(d map[string]any) {
+			e := prop(d, "finding", "severity")
+			e["enum"] = append(e["enum"].([]any), "critical")
+		},
+		"maxItems changed on open_question.options": func(d map[string]any) { prop(d, "open_question", "options")["maxItems"] = 4 },
+		"minimum removed from tree.files":           func(d map[string]any) { delete(prop(d, "tree", "files"), "minimum") },
+		"const changed on command.executed":         func(d map[string]any) { prop(d, "command", "executed")["const"] = true },
+		"minLength removed from tool.name":          func(d map[string]any) { delete(prop(d, "tool", "name"), "minLength") },
+		"pattern changed on finding.secret_type":    func(d map[string]any) { prop(d, "finding", "secret_type")["pattern"] = "^.+$" },
+	} {
+		doc := load()
+		edit(doc)
+		_, onlyGo, onlySchema := fieldPathDrift(reflect.TypeOf(model.Report{}), doc)
+		if len(onlyGo) == 0 || len(onlySchema) == 0 {
+			t.Errorf("%s: the comparison stays green (only Go %v, only schema %v)", name, onlyGo, onlySchema)
+		}
+	}
+
+	// The Go side: a tag that drifts from the schema it mirrors is reported, a tag that matches is not.
+	type row struct {
+		Names []string `json:"names" minLen:"1" pattern:"^[a-z]+$" maxItems:"3"`
+	}
+	schemaFor := func(pattern string) map[string]any {
+		doc := map[string]any{"required": []any{"names"}, "$defs": map[string]any{}, "properties": map[string]any{"names": map[string]any{
+			"type": "array", "maxItems": float64(3), "items": map[string]any{"type": "string", "minLength": float64(1), "pattern": pattern}}}}
+		return doc
+	}
+	if _, g, s := fieldPathDrift(reflect.TypeOf(row{}), schemaFor("^[a-z]+$")); len(g)+len(s) != 0 {
+		t.Errorf("matching tag and schema are reported as drift: %v %v", g, s)
+	}
+	if _, g, s := fieldPathDrift(reflect.TypeOf(row{}), schemaFor("^[A-Z]+$")); len(g) != 1 || len(s) != 1 {
+		t.Errorf("a pattern that differs is not reported: %v %v", g, s)
+	}
 }
