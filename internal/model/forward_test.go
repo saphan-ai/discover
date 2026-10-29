@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,8 +38,63 @@ func stripClosed(v any) {
 	}
 }
 
+const defRef = "#/$defs/"
+
+// refsIn adds to out the name of every def that v refers to by `$ref`.
+func refsIn(v any, out map[string]bool) {
+	switch x := v.(type) {
+	case map[string]any:
+		if ref, ok := x["$ref"].(string); ok && strings.HasPrefix(ref, defRef) {
+			out[strings.TrimPrefix(ref, defRef)] = true
+		}
+		for _, c := range x {
+			refsIn(c, out)
+		}
+	case []any:
+		for _, c := range x {
+			refsIn(c, out)
+		}
+	}
+}
+
+// reachableDefs returns the defs reachable from the def `from` by following `$ref`s, `from` itself included.
+func reachableDefs(defs map[string]any, from string) map[string]bool {
+	seen := map[string]bool{from: true}
+	for queue := []string{from}; len(queue) > 0; {
+		refs := map[string]bool{}
+		refsIn(defs[queue[0]], refs)
+		queue = queue[1:]
+		for r := range refs {
+			if !seen[r] {
+				seen[r] = true
+				queue = append(queue, r)
+			}
+		}
+	}
+	return seen
+}
+
+// retarget rewrites every `$ref` under v whose def name is in names to the closed_ copy of that def.
+func retarget(v any, names map[string]bool) {
+	switch x := v.(type) {
+	case map[string]any:
+		if ref, ok := x["$ref"].(string); ok && names[strings.TrimPrefix(ref, defRef)] {
+			x["$ref"] = defRef + "closed_" + strings.TrimPrefix(ref, defRef)
+		}
+		for _, c := range x {
+			retarget(c, names)
+		}
+	case []any:
+		for _, c := range x {
+			retarget(c, names)
+		}
+	}
+}
+
 // readerSchemaFrom derives the reader's schema from the writer's: every object stops refusing unknown
-// properties, except a finding and the source inside it, which stay closed. The reader file is never edited by hand.
+// properties, except a finding and every def reachable from it, which stay closed. A reachable def is kept closed
+// as a closed_ copy that only the finding side refers to, so the same def elsewhere is open. The reader file is
+// never edited by hand.
 func readerSchemaFrom(t *testing.T, writer []byte) []byte {
 	t.Helper()
 	var doc map[string]any
@@ -46,23 +102,31 @@ func readerSchemaFrom(t *testing.T, writer []byte) []byte {
 		t.Fatal(err)
 	}
 	defs := doc["$defs"].(map[string]any)
-	var closedSource any
-	{
-		b, _ := json.Marshal(defs["source"])
-		if err := json.Unmarshal(b, &closedSource); err != nil {
+	finding := defs["finding"].(map[string]any)
+	if finding["additionalProperties"] != false {
+		t.Fatal("the writer schema does not close a finding")
+	}
+	reach := reachableDefs(defs, "finding")
+	delete(reach, "finding")
+	copies := map[string]any{}
+	for name := range reach {
+		var c any
+		b, _ := json.Marshal(defs[name])
+		if err := json.Unmarshal(b, &c); err != nil {
 			t.Fatal(err)
 		}
+		copies["closed_"+name] = c
 	}
-	finding := defs["finding"].(map[string]any)
-	finding["properties"].(map[string]any)["source"] = map[string]any{"$ref": "#/$defs/closed_source"}
-	findingKept := finding["additionalProperties"]
-	if findingKept != false {
-		t.Fatal("the writer schema does not close a finding")
+	retarget(finding, reach)
+	for _, c := range copies {
+		retarget(c, reach)
 	}
 	delete(finding, "additionalProperties")
 	stripClosed(doc)
 	finding["additionalProperties"] = false
-	defs["closed_source"] = closedSource
+	for name, c := range copies {
+		defs[name] = c
+	}
 	doc["$id"] = readerSchemaID
 	doc["title"] = "discover report, schema v1, reader variant"
 	doc["$comment"] = "Generated from discover-v1.schema.json by a test in internal/model; never edited by hand. " +
@@ -105,21 +169,75 @@ func TestReaderSchemaIsGeneratedFromWriterSchema(t *testing.T) {
 	}
 }
 
-// The generator must be able to fail: a closed object that is not a finding must come out open.
+// closureProblems checks a reader schema document: the finding and every def reachable from it are closed, nothing
+// else is, and no def reachable from the finding is also reachable from outside it by the same name.
+func closureProblems(doc map[string]any) []string {
+	var out []string
+	defs := doc["$defs"].(map[string]any)
+	closedSet := reachableDefs(defs, "finding")
+	for name, d := range defs {
+		_, closed := d.(map[string]any)["additionalProperties"]
+		if closed != closedSet[name] {
+			out = append(out, fmt.Sprintf("def %s: closed=%v, reachable from a finding=%v", name, closed, closedSet[name]))
+		}
+	}
+	if _, ok := doc["additionalProperties"]; ok {
+		out = append(out, "the top level is closed")
+	}
+	return out
+}
+
+// The generator must be able to fail: a closed object that is not reachable from a finding must come out open.
 func TestReaderSchemaGeneratorOpensEverythingButFindings(t *testing.T) {
 	var doc map[string]any
 	if err := json.Unmarshal(readFile(t, readerSchemaPath), &doc); err != nil {
 		t.Fatal(err)
 	}
-	defs := doc["$defs"].(map[string]any)
-	for name, d := range defs {
-		_, closed := d.(map[string]any)["additionalProperties"]
-		if closed != (name == "finding" || name == "closed_source") {
-			t.Errorf("def %s: closed=%v in the reader schema", name, closed)
+	if p := closureProblems(doc); len(p) > 0 {
+		t.Errorf("the reader schema: %v", p)
+	}
+	if !reachableDefs(doc["$defs"].(map[string]any), "finding")["closed_source"] {
+		t.Error("closed_source is not reachable from the finding in the reader schema")
+	}
+}
+
+// A finding that one day refers to a def of its own, which refers to another, keeps both closed for a reader, and
+// the check above sees a copy that was left open.
+func TestReaderSchemaClosesEveryDefReachableFromFinding(t *testing.T) {
+	var writer map[string]any
+	if err := json.Unmarshal(readFile(t, schemaPath), &writer); err != nil {
+		t.Fatal(err)
+	}
+	defs := writer["$defs"].(map[string]any)
+	defs["finding_detail"] = map[string]any{
+		"type": "object", "additionalProperties": false, "required": []any{"origin"},
+		"properties": map[string]any{"origin": map[string]any{"$ref": "#/$defs/source"}},
+	}
+	defs["finding"].(map[string]any)["properties"].(map[string]any)["detail"] = map[string]any{"$ref": "#/$defs/finding_detail"}
+	in, _ := json.Marshal(writer)
+
+	var reader map[string]any
+	if err := json.Unmarshal(readerSchemaFrom(t, in), &reader); err != nil {
+		t.Fatal(err)
+	}
+	if p := closureProblems(reader); len(p) > 0 {
+		t.Fatalf("the generated reader schema: %v", p)
+	}
+	rdefs := reader["$defs"].(map[string]any)
+	reach := reachableDefs(rdefs, "finding")
+	for _, want := range []string{"closed_finding_detail", "closed_source"} {
+		if !reach[want] {
+			t.Errorf("%s is not reachable from the finding", want)
 		}
 	}
-	if _, ok := doc["additionalProperties"]; ok {
-		t.Error("the reader schema closes the top level")
+	if reach["finding_detail"] {
+		t.Error("the open finding_detail is reachable from the finding")
+	}
+
+	// Negative control: leave exactly one reachable def open, and the check names it.
+	delete(rdefs["closed_finding_detail"].(map[string]any), "additionalProperties")
+	if p := closureProblems(reader); len(p) != 1 || !strings.Contains(p[0], "closed_finding_detail") {
+		t.Errorf("an open def reachable from a finding was not named: %v", p)
 	}
 }
 
