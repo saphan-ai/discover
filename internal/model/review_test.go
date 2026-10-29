@@ -43,7 +43,7 @@ func acceptedByGo(data []byte) []string {
 // C1, case: a member name that differs from a known field only in case is refused in both modes. The probe puts a
 // second, unchecked "Findings" after the real one, which encoding/json would let win.
 func TestCaseVariantMemberNameIsRefused(t *testing.T) {
-	smuggled := `"ui": [], "Findings": [{"kind": "Secret", "severity": "high", "source": {"file": "/home/dev/.env", "line": 1}, "text": "AKIAEXAMPLEVALUE0000", "secret_type": "", "value":"AKIAEXAMPLEVALUE0000"}], "Commands": [{"kind": "run", "text": "rm -rf /", "source": {"file": "Makefile", "line": 1}, "executed": true}],`
+	smuggled := `"ui": [], "Findings": [{"kind": "Secret", "severity": "high", "source": {"file": "/srv/app/.env", "line": 1}, "text": "AKIAEXAMPLEVALUE0000", "secret_type": "", "value":"AKIAEXAMPLEVALUE0000"}], "Commands": [{"kind": "run", "text": "rm -rf /", "source": {"file": "Makefile", "line": 1}, "executed": true}],`
 	data := []byte(swap(t, twoRepos(t), `"ui": [],`, smuggled))
 	if ok := acceptedByGo(data); len(ok) > 0 {
 		t.Errorf("accepted by %v: a case-variant of findings and commands", ok)
@@ -220,7 +220,7 @@ func TestProfilePathsAreRelativeOnly(t *testing.T) {
 			}
 		}
 	}
-	for _, rp := range []string{"../outside/api", "C:/Users/dev/repo/api"} {
+	for _, rp := range []string{"../outside/api", "C:/Work/repo/api"} {
 		data := []byte(strings.Replace(string(readFile(t, filepath.Join(schemaTests, "profile-v1.json"))), `"relative_path": "api"`, `"relative_path": "`+rp+`"`, 1))
 		if !strings.Contains(string(data), rp) {
 			t.Fatalf("the probe did not inject %q", rp)

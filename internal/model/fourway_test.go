@@ -49,7 +49,7 @@ func TestPathFieldsRefuseEscapesUnderAllFour(t *testing.T) {
 		ok   bool
 	}{
 		{"a/b.go", true}, {".github/workflows/ci.yml", true}, {"..a", true}, {"a..b", true}, {"...", true}, {"a.", true}, {"x/.hidden", true},
-		{"/etc/passwd", false}, {`\share\x`, false}, {"C:/Users/x", false}, {"c:x", false}, {"..", false}, {"../x", false},
+		{"/etc/passwd", false}, {`\share\x`, false}, {"C:/Data/x", false}, {"c:x", false}, {"..", false}, {"../x", false},
 		{"a/../b", false}, {"a/..", false}, {`a\..\b`, false}, {"a//b", false}, {"a/", false}, {"", false},
 	} {
 		data := mutate(t, "valid/two-repos.json", func(d map[string]any) {

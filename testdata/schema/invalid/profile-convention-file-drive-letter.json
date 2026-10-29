@@ -113,7 +113,7 @@
           "test": [{ "text": "go test ./...", "source": { "file": "Makefile", "line": 12 } }],
           "run": []
         },
-        "convention_files": ["C:/Users/dev/Makefile"],
+        "convention_files": ["C:/Work/Makefile"],
         "ci": [{ "system": "github-actions", "source": { "file": ".github/workflows/ci.yml", "line": 1 } }]
       },
       {
