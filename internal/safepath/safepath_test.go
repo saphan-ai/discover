@@ -119,3 +119,33 @@ func TestOpenRegularRefusesWhatIsNotARegularFile(t *testing.T) {
 		t.Errorf("size %d", fi.Size())
 	}
 }
+
+// The parent is swapped for a symlink to a directory that holds a hard link to the very file the check saw. An open
+// by path would reach the same inode and every later comparison would agree: only the confined open refuses.
+func TestConfinedOpenRefusesAParentSwappedForASymlinkToTheSameFile(t *testing.T) {
+	root, outside := tree(t)
+	if err := os.Remove(filepath.Join(outside, "f")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Link(filepath.Join(root, "sub", "f"), filepath.Join(outside, "f")); err != nil {
+		t.Skipf("no hard links here: %v", err)
+	}
+	r, err := OpenRoot(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer r.Close()
+	withHook(t, func(string) {
+		os.RemoveAll(filepath.Join(root, "sub"))
+		os.Symlink(outside, filepath.Join(root, "sub"))
+	})
+	f, _, err := r.OpenRegular("sub/f")
+	if err == nil {
+		f.Close()
+		t.Fatal("the file was opened through a parent that leads out of the root")
+	}
+	// Negative control: an open by path reaches the same inode, so only the confined open stood in the way.
+	if b, err := os.ReadFile(filepath.Join(root, "sub", "f")); err != nil || string(b) != "inside" {
+		t.Fatalf("the swap did not take effect (%q, %v): the test proved nothing", b, err)
+	}
+}
