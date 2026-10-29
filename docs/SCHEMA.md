@@ -9,9 +9,21 @@ in `internal/model` match the writer schema field for field, and a test fails if
 
 - **Every claim cites its source.** A `source` is `{file, key}` or `{file, line}` (at least one of `key` and `line`).
   `file` is relative to the repository root; an absolute path is refused.
+- **A path is plain relative.** Every path field (`source.file`, `read_manifest.entries[].path`, `git.dirty_paths[]`,
+  `workspace_profile.repos[].relative_path` and `convention_files[]`) refuses a leading `/` or `\`, a drive letter
+  (`C:`), any `..` segment and an empty segment. `.` alone is the root.
 - **A secret is a location and a type.** A finding of kind `secret` carries `secret_type` and no `text`. No field can
   hold the value, because a finding accepts no field the schema does not name, for a writer or for a reader (see
-  the compatibility rule).
+  the compatibility rule), and the two free fields it keeps are bounded: `secret_type` is a slug
+  (`^[a-z0-9][a-z0-9-]{0,63}$`, for example `aws-access-key-id`), and `source.key` inside a secret finding is a key
+  path (`^[A-Za-z_][A-Za-z0-9_.\-\[\]]{0,127}$`, for example `services.api.env[0].API_TOKEN`), never a value. Outside
+  a secret finding `source.key` is unchanged. A slug or a key path can still be a poorly chosen word; the schema
+  stops a value that has an `=`, a space or a quote in it, and cannot know what a writer meant by the rest.
+- **A member name is unique and exact.** A document holding the same member name twice in one object, or a name that
+  differs from a known field only in case (`Findings` beside `findings`), is refused, by a writer and by a reader.
+  Readers in other languages must do the same: RFC 8259 §4 says names SHOULD be unique, and parsers disagree on
+  which copy wins, so a duplicate can show one reader a different document from the one that was checked. JSON Schema
+  cannot express either rule, so the schema files do not carry it; `model.Validate` and `model.ValidateForRead` do.
 - **A command is cited, never run.** `commands[].executed` is always `false`.
 - **An empty section is not deleted.** Its array stays and `absent[]` carries one line: the section number (1 to 10)
   and the reason.
@@ -91,7 +103,8 @@ One rule, two validators.
   finding is refused, naming the field. The reason is the secret rule: no later file can carry a secret's value in a
   field an older reader would pass through. `schema/discover-v1.reader.schema.json` and `model.ValidateForRead`
   enforce that. Every other rule (required fields, types, enums, patterns, the `executed` constant, the cross-field
-  rules) holds for a reader unchanged.
+  rules, and the duplicate-name and case rule above) holds for a reader unchanged. `model.ValidateForRead` builds the
+  value it returns from the tree it checked, never from a second reading of the bytes.
 - **A reader refuses any `schema_version` it does not know.**
 
 The reader schema is generated from the writer schema by a test helper in `internal/model` and is never edited by
@@ -104,8 +117,8 @@ go test -count=1 -run TestReaderSchemaIsGenerated ./internal/model/ -args -updat
 ## Checking a document
 
 `model.Validate` (package `internal/model`) is the writer's check: it refuses a document that breaks any rule above
-and names the field by its JSON pointer, for example `/repos/0/commands/1/executed`. The CLI calls it before it
-writes a report. `model.ValidateForRead` is the reader's check, for a document another v1 writer produced. The schema
+and names the field by its JSON pointer, for example `/repos/0/commands/1/executed`. The renderer wagon (W8) is
+the order that wires it in: until then no CLI code calls it, and `Marshal` is the way to write a checked report. `model.ValidateForRead` is the reader's check, for a document another v1 writer produced. The schema
 files are the contract for other languages; `testdata/schema/valid/` and `testdata/schema/invalid/` are the
 examples, and every invalid file differs from a valid one in exactly one field (`invalid/EXPECT.json` names it).
 `testdata/schema/forward/` holds the two files a later v1 writer might produce: one with an unknown optional field
