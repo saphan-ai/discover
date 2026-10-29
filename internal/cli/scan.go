@@ -135,9 +135,19 @@ func scan(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
+	// The scan never writes through a link: what already stands where it will write is a plain directory and plain
+	// files, or the scan stops before it reads anything.
+	for i, t := range targets {
+		if msg := unplainOutput(dirs[i]); msg != "" {
+			fmt.Fprintf(stderr, "discover scan: refused: the output %s of target %q; nothing was read or written. "+
+				"Remove it, or choose another --out.\n", msg, t.label)
+			return ExitUsage
+		}
+	}
+
 	code := ExitOK
 	for i, t := range targets {
-		c, err := scanOne(t, dirs[i], attest.Options{RecordRoot: *recordRoot, GitTimeout: *gitTimeout}, stdout)
+		c, err := scanOne(t, targets, dirs[i], attest.Options{RecordRoot: *recordRoot, GitTimeout: *gitTimeout}, stdout)
 		if err != nil {
 			fmt.Fprintf(stderr, "discover scan: %q: %v\n", t.label, err)
 			return ExitUsage
@@ -149,7 +159,7 @@ func scan(args []string, stdout, stderr io.Writer) int {
 	return code
 }
 
-func scanOne(t target, outDir string, opts attest.Options, stdout io.Writer) (int, error) {
+func scanOne(t target, all []target, outDir string, opts attest.Options, stdout io.Writer) (int, error) {
 	before, err := attest.Attest(t.real, opts)
 	if err != nil {
 		return ExitUsage, err
@@ -178,6 +188,10 @@ func scanOne(t target, outDir string, opts attest.Options, stdout io.Writer) (in
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return ExitUsage, err
 	}
+	// A directory or a link that appeared since the checks is caught here, on the directory as it now is.
+	if o, bad := createdDirInsideTarget(outDir, all); bad {
+		return ExitUsage, fmt.Errorf("refused: the output directory lies inside the target %q; nothing was written", o.label)
+	}
 	mj, err := m.JSON()
 	if err != nil {
 		return ExitUsage, err
@@ -186,10 +200,7 @@ func scanOne(t target, outDir string, opts attest.Options, stdout io.Writer) (in
 	if err != nil {
 		return ExitUsage, err
 	}
-	if err := os.WriteFile(filepath.Join(outDir, manifestFile), mj, 0o644); err != nil {
-		return ExitUsage, err
-	}
-	if err := os.WriteFile(filepath.Join(outDir, attestationFile), append(aj, '\n'), 0o644); err != nil {
+	if err := writeOutputs(outDir, map[string][]byte{manifestFile: mj, attestationFile: append(aj, '\n')}); err != nil {
 		return ExitUsage, err
 	}
 
@@ -265,8 +276,62 @@ func inside(p, root string) bool {
 	}
 }
 
-// createdDirInsideTarget is a stub for the red commit.
-func createdDirInsideTarget(dir string, targets []target) (target, bool) { return target{}, false }
+// unplainOutput says what is wrong with an existing output path, or returns "" when nothing stands there or it is
+// as it should be: a directory for dir, a regular file for each output file. A link is wrong wherever it points.
+// It names labels and output file names only, never a path.
+func unplainOutput(dir string) string {
+	fi, err := os.Lstat(dir)
+	if err != nil {
+		return ""
+	}
+	if !fi.IsDir() {
+		return "directory is a symbolic link or not a directory"
+	}
+	for _, name := range []string{manifestFile, attestationFile} {
+		if fi, err := os.Lstat(filepath.Join(dir, name)); err == nil && !fi.Mode().IsRegular() {
+			return "file " + name + " is a symbolic link or not a regular file"
+		}
+	}
+	return ""
+}
+
+// createdDirInsideTarget reports the target that dir lies inside, judged on the real path of dir as it is now.
+func createdDirInsideTarget(dir string, targets []target) (target, bool) {
+	real, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		real = dir
+	}
+	for _, t := range targets {
+		if inside(real, t.real) {
+			return t, true
+		}
+	}
+	return target{}, false
+}
+
+// writeOutputs writes each file through a root opened on dir, so no write can leave dir, even when a link appears
+// after the checks. Each file is created or truncated as a regular file.
+func writeOutputs(dir string, files map[string][]byte) error {
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	for _, name := range []string{manifestFile, attestationFile} {
+		f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
+		if err != nil {
+			return err
+		}
+		_, werr := f.Write(files[name])
+		if cerr := f.Close(); werr == nil {
+			werr = cerr
+		}
+		if werr != nil {
+			return werr
+		}
+	}
+	return nil
+}
 
 // freeName returns label, or the first label-N (N from 2) that no earlier target took, and marks it taken.
 func freeName(used map[string]bool, label string) string {

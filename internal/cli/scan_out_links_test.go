@@ -113,12 +113,12 @@ func TestOutputNameThatIsNotARegularFileIsRefused(t *testing.T) {
 		t.Fatal(err)
 	}
 	code, _, stderr := run(t, "--out", x, a)
-	if code != ExitUsage || !strings.Contains(stderr, manifestFile) {
+	if code != ExitUsage || !strings.Contains(stderr, manifestFile) || !strings.Contains(stderr, "not a regular file") {
 		t.Errorf("exit %d, stderr %q", code, stderr)
 	}
 	os.Remove(filepath.Join(x, manifestFile))
 	code, _, stderr = run(t, "--out", x, a)
-	if code != ExitUsage || !strings.Contains(stderr, attestationFile) {
+	if code != ExitUsage || !strings.Contains(stderr, attestationFile) || !strings.Contains(stderr, "not a regular file") {
 		t.Errorf("directory in the place of a file: exit %d, stderr %q", code, stderr)
 	}
 }
