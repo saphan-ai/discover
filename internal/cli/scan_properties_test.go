@@ -1,7 +1,7 @@
 package cli
 
-// The named review's probes. Each test asserts a property of `discover scan` that must HOLD; a red test is a
-// confirmed finding.
+// Properties of `discover scan` that must hold: every change between the two passes is seen, a read never leaves the
+// target, no program named by the target runs, and no error names an absolute path.
 
 import (
 	"os"
@@ -19,33 +19,26 @@ const (
 	plainScope = "not empty directories"
 )
 
-func rbase(t *testing.T) string {
+// scratch is a temporary directory that is made removable again at the end, whatever a test did to its modes.
+func scratch(t *testing.T) string {
 	t.Helper()
-	wd, _ := os.Getwd()
-	d := filepath.Join(wd, "..", "..", ".saphan", "work", "discover-attest-proof", "tmp",
-		strings.ReplaceAll(t.Name(), "/", "_"))
-	os.RemoveAll(d)
-	if err := os.MkdirAll(d, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	d, _ = filepath.EvalSymlinks(d)
+	d := temp(t)
 	t.Cleanup(func() {
 		filepath.WalkDir(d, func(p string, e os.DirEntry, err error) error { os.Chmod(p, 0o755); return nil })
-		os.RemoveAll(d)
 	})
 	return d
 }
 
-func rplain(t *testing.T) (string, string) {
-	b := rbase(t)
+func plainFixture(t *testing.T) (string, string) {
+	b := scratch(t)
 	root := filepath.Join(b, "plain")
 	os.Mkdir(root, 0o755)
 	fixture.TreeA(t, root)
 	return b, root
 }
 
-func rgit(t *testing.T) (string, string) {
-	b := temp(t) // under the worktree, the leg's commit-msg hook refuses the fixture's commit
+func gitFixture(t *testing.T) (string, string) {
+	b := temp(t)
 	root := filepath.Join(b, "repo")
 	os.Mkdir(root, 0o755)
 	fixture.GitRepo(t, root)
@@ -73,43 +66,43 @@ func mustStayOutOfScope(t *testing.T, base, root, scope string, change func(r st
 
 // ---- property 1: every change is seen ----
 
-func TestProbeP1PlainByte(t *testing.T) {
-	b, r := rplain(t)
+func TestScanSeesPlainByte(t *testing.T) {
+	b, r := plainFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.WriteFile(filepath.Join(r, "a.txt"), []byte("alphA\n"), 0o644) })
 }
-func TestProbeP1PlainNewFile(t *testing.T) {
-	b, r := rplain(t)
+func TestScanSeesPlainNewFile(t *testing.T) {
+	b, r := plainFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.WriteFile(filepath.Join(r, "new.txt"), nil, 0o644) })
 }
-func TestProbeP1PlainDelete(t *testing.T) {
-	b, r := rplain(t)
+func TestScanSeesPlainDelete(t *testing.T) {
+	b, r := plainFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.Remove(filepath.Join(r, "empty.txt")) })
 }
-func TestProbeP1PlainRename(t *testing.T) {
-	b, r := rplain(t)
+func TestScanSeesPlainRename(t *testing.T) {
+	b, r := plainFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.Rename(filepath.Join(r, "a.txt"), filepath.Join(r, "z.txt")) })
 }
-func TestProbeP1PlainSymlinkRetarget(t *testing.T) {
-	b, r := rplain(t)
+func TestScanSeesPlainSymlinkRetarget(t *testing.T) {
+	b, r := plainFixture(t)
 	mustNotEqual(t, b, r, func(r string) {
 		os.Remove(filepath.Join(r, "link-in"))
 		os.Symlink("b.txt", filepath.Join(r, "link-in"))
 	})
 }
-func TestProbeP1PlainChmod(t *testing.T) {
-	b, r := rplain(t)
+func TestScanSeesPlainChmod(t *testing.T) {
+	b, r := plainFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.Chmod(filepath.Join(r, "a.txt"), 0o755) })
 }
 
-// Master ruling: an empty directory is declared out of scope (content-addressed, as in git), and the proof says so.
-func TestProbeP1PlainEmptyDir(t *testing.T) {
-	b, r := rplain(t)
+// Design rule: an empty directory is declared out of scope (content-addressed, as in git), and the proof says so.
+func TestScanSeesPlainEmptyDir(t *testing.T) {
+	b, r := plainFixture(t)
 	mustStayOutOfScope(t, b, r, plainScope, func(r string) { os.Mkdir(filepath.Join(r, "newdir"), 0o755) })
 }
 
 // Two different trees, one digest: a newline in a name forges a second line.
-func TestProbeP1NewlineNameCollision(t *testing.T) {
-	b := rbase(t)
+func TestNewlineInANameCannotForgeALine(t *testing.T) {
+	b := scratch(t)
 	r := filepath.Join(b, "t")
 	os.Mkdir(r, 0o755)
 	os.WriteFile(filepath.Join(r, "p"), []byte("C"), 0o644)
@@ -121,8 +114,8 @@ func TestProbeP1NewlineNameCollision(t *testing.T) {
 }
 
 // Two different trees, one digest: " -> " is not escaped in a link line.
-func TestProbeP1ArrowInLinkName(t *testing.T) {
-	b := rbase(t)
+func TestArrowInALinkNameCannotForgeALink(t *testing.T) {
+	b := scratch(t)
 	r := filepath.Join(b, "t")
 	os.Mkdir(r, 0o755)
 	os.Symlink("b -> c", filepath.Join(r, "a"))
@@ -132,52 +125,52 @@ func TestProbeP1ArrowInLinkName(t *testing.T) {
 	})
 }
 
-func TestProbeP1GitByte(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitByte(t *testing.T) {
+	b, r := gitFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.WriteFile(filepath.Join(r, "a.txt"), []byte("alphA\n"), 0o644) })
 }
-func TestProbeP1GitNewUntracked(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitNewUntracked(t *testing.T) {
+	b, r := gitFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.WriteFile(filepath.Join(r, "new.txt"), nil, 0o644) })
 }
-func TestProbeP1GitDelete(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitDelete(t *testing.T) {
+	b, r := gitFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.Remove(filepath.Join(r, "b.txt")) })
 }
-func TestProbeP1GitRename(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitRename(t *testing.T) {
+	b, r := gitFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.Rename(filepath.Join(r, "a.txt"), filepath.Join(r, "z.txt")) })
 }
-func TestProbeP1GitSymlinkRetarget(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitSymlinkRetarget(t *testing.T) {
+	b, r := gitFixture(t)
 	mustNotEqual(t, b, r, func(r string) {
 		os.Remove(filepath.Join(r, "link-in"))
 		os.Symlink("b.txt", filepath.Join(r, "link-in"))
 	})
 }
-func TestProbeP1GitChmodTracked(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitChmodTracked(t *testing.T) {
+	b, r := gitFixture(t)
 	mustNotEqual(t, b, r, func(r string) { os.Chmod(filepath.Join(r, "a.txt"), 0o755) })
 }
 
-// Master ruling: ignored paths and .git internals are outside the git-mode proof, and the proof line says so.
-func TestProbeP1GitIgnoredFileWritten(t *testing.T) {
-	b, r := rgit(t)
+// Design rule: ignored paths and .git internals are outside the git-mode proof, and the proof line says so.
+func TestScanSeesGitIgnoredFileWritten(t *testing.T) {
+	b, r := gitFixture(t)
 	os.WriteFile(filepath.Join(r, ".gitignore"), []byte("*.log\n"), 0o644)
 	fixture.Git(t, r, "add", ".gitignore")
 	fixture.Git(t, r, "commit", "-q", "-m", "ignore")
 	mustStayOutOfScope(t, b, r, gitScope, func(r string) { os.WriteFile(filepath.Join(r, "written.log"), []byte("x"), 0o644) })
 }
-func TestProbeP1GitCommitBetweenPasses(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitCommitBetweenPasses(t *testing.T) {
+	b, r := gitFixture(t)
 	os.WriteFile(filepath.Join(r, "a.txt"), []byte("edited\n"), 0o644)
 	mustNotEqual(t, b, r, func(r string) {
 		fixture.Git(t, r, "add", "a.txt")
 		fixture.Git(t, r, "commit", "-q", "-m", "between")
 	})
 }
-func TestProbeP1GitWriteInsideDotGit(t *testing.T) {
-	b, r := rgit(t)
+func TestScanSeesGitWriteInsideDotGit(t *testing.T) {
+	b, r := gitFixture(t)
 	mustStayOutOfScope(t, b, r, gitScope, func(r string) {
 		os.WriteFile(filepath.Join(r, ".git", "hooks", "post-checkout"), []byte("x"), 0o755)
 	})
@@ -186,8 +179,8 @@ func TestProbeP1GitWriteInsideDotGit(t *testing.T) {
 // ---- property 2: reads stay inside the root ----
 
 // Resolve checks the parents, then the parent is swapped for a symlink before the open.
-func TestProbeP2ParentSwapBetweenResolveAndOpen(t *testing.T) {
-	b := rbase(t)
+func TestParentSwappedBetweenCheckAndOpenIsNotRead(t *testing.T) {
+	b := scratch(t)
 	r := filepath.Join(b, "root")
 	os.MkdirAll(filepath.Join(r, "sub"), 0o755)
 	os.WriteFile(filepath.Join(r, "sub", "f"), []byte("inside"), 0o644)
@@ -216,8 +209,8 @@ func TestProbeP2ParentSwapBetweenResolveAndOpen(t *testing.T) {
 
 // ---- property 3: the target is never written, and no program the target names is run ----
 
-func TestProbeP3StaleStatDoesNotRefreshIndex(t *testing.T) {
-	b, r := rgit(t)
+func TestStaleStatDoesNotRefreshTheIndex(t *testing.T) {
+	b, r := gitFixture(t)
 	// same content, new mtime: git must re-check the file, and would refresh the index if it could
 	future := time.Now().Add(2 * time.Hour)
 	os.Chtimes(filepath.Join(r, "a.txt"), future, future)
@@ -246,8 +239,8 @@ func TestProbeP3StaleStatDoesNotRefreshIndex(t *testing.T) {
 }
 
 // A clean filter in the target's own .git/config is a program git runs during `git status`.
-func TestProbeP3RepoConfigFilterIsNotRun(t *testing.T) {
-	b, r := rgit(t)
+func TestRepoConfigFilterIsNotRun(t *testing.T) {
+	b, r := gitFixture(t)
 	marker := filepath.Join(b, "filter-ran")
 	os.WriteFile(filepath.Join(r, ".gitattributes"), []byte("*.txt filter=probe\n"), 0o644)
 	fixture.Git(t, r, "add", ".gitattributes")
@@ -263,8 +256,8 @@ func TestProbeP3RepoConfigFilterIsNotRun(t *testing.T) {
 }
 
 // A submodule carries its own config and its own attributes: a filter named there is a program too.
-func TestProbeP3SubmoduleConfigFilterIsNotRun(t *testing.T) {
-	b, r := rgit(t)
+func TestSubmoduleConfigFilterIsNotRun(t *testing.T) {
+	b, r := gitFixture(t)
 	src := filepath.Join(b, "subsrc")
 	os.Mkdir(src, 0o755)
 	os.WriteFile(filepath.Join(src, "x.txt"), []byte("x\n"), 0o644)
@@ -292,8 +285,8 @@ func TestProbeP3SubmoduleConfigFilterIsNotRun(t *testing.T) {
 
 // ---- --out inside the target, spelled with another case (macOS default APFS is case-insensitive) ----
 
-func TestProbeOutCaseVariantIsRefused(t *testing.T) {
-	b, r := rplain(t)
+func TestOutWithAnotherCaseIsRefusedOnACaseInsensitiveHost(t *testing.T) {
+	b, r := plainFixture(t)
 	upper := filepath.Join(b, "PLAIN")
 	if _, err := os.Stat(upper); err != nil {
 		t.Skip("case-sensitive filesystem")
@@ -307,8 +300,8 @@ func TestProbeOutCaseVariantIsRefused(t *testing.T) {
 
 // ---- property 5: no absolute root in an error ----
 
-func TestProbeP5UnreadableRootErrorLeaksNoPath(t *testing.T) {
-	b, r := rplain(t)
+func TestUnreadableRootErrorLeaksNoPath(t *testing.T) {
+	b, r := plainFixture(t)
 	os.Chmod(r, 0)
 	defer os.Chmod(r, 0o755)
 	code, stdout, stderr := run(t, "--out", filepath.Join(b, "out"), r)
@@ -320,8 +313,8 @@ func TestProbeP5UnreadableRootErrorLeaksNoPath(t *testing.T) {
 
 // ---- several targets: output directory names collide ----
 
-func TestProbeSeveralTargetsNameCollision(t *testing.T) {
-	b := rbase(t)
+func TestSeveralTargetsWithOneNameKeepSeparateOutputs(t *testing.T) {
+	b := scratch(t)
 	var roots []string
 	for _, p := range []string{"x/plain", "y/plain", "z/plain-2"} {
 		r := filepath.Join(b, p)

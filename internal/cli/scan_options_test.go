@@ -8,7 +8,7 @@ import (
 )
 
 func TestGitTimeoutFlagReachesEveryGitCall(t *testing.T) {
-	b, r := rgit(t)
+	b, r := gitFixture(t)
 	fakeDir := filepath.Join(b, "bin")
 	os.Mkdir(fakeDir, 0o755)
 	if err := os.WriteFile(filepath.Join(fakeDir, "git"), []byte("#!/bin/sh\nexec sleep 30\n"), 0o755); err != nil {
@@ -25,7 +25,7 @@ func TestGitTimeoutFlagReachesEveryGitCall(t *testing.T) {
 }
 
 func TestGitTimeoutMustBePositive(t *testing.T) {
-	b, r := rgit(t)
+	b, r := gitFixture(t)
 	for _, v := range []string{"0s", "-1s"} {
 		code, _, stderr := run(t, "--git-timeout", v, "--out", filepath.Join(b, "out"), r)
 		if code != ExitUsage || !strings.Contains(stderr, "--git-timeout") {
@@ -35,7 +35,7 @@ func TestGitTimeoutMustBePositive(t *testing.T) {
 }
 
 func TestOutThroughAHardToSeeAliasOfTheTargetIsRefused(t *testing.T) {
-	b, r := rplain(t)
+	b, r := plainFixture(t)
 	alias := filepath.Join(b, "alias")
 	if err := os.Symlink(r, alias); err != nil {
 		t.Fatal(err)

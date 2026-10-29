@@ -120,16 +120,11 @@ func TestOpenRegularRefusesWhatIsNotARegularFile(t *testing.T) {
 	}
 }
 
-// The parent is swapped for a symlink to a directory that holds a hard link to the very file the check saw. An open
-// by path would reach the same inode and every later comparison would agree: only the confined open refuses.
-func TestConfinedOpenRefusesAParentSwappedForASymlinkToTheSameFile(t *testing.T) {
+// The parent is swapped for a symlink to an outside directory after the check. The refusal must come from the open
+// itself: an open by path would succeed and the later same-file comparison would refuse (ErrNotRegular), which is a
+// different, weaker defence that a regular file with the same inode would pass.
+func TestTheOpenItselfRefusesAParentThatLeavesTheRoot(t *testing.T) {
 	root, outside := tree(t)
-	if err := os.Remove(filepath.Join(outside, "f")); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.Link(filepath.Join(root, "sub", "f"), filepath.Join(outside, "f")); err != nil {
-		t.Skipf("no hard links here: %v", err)
-	}
 	r, err := OpenRoot(root)
 	if err != nil {
 		t.Fatal(err)
@@ -144,8 +139,12 @@ func TestConfinedOpenRefusesAParentSwappedForASymlinkToTheSameFile(t *testing.T)
 		f.Close()
 		t.Fatal("the file was opened through a parent that leads out of the root")
 	}
-	// Negative control: an open by path reaches the same inode, so only the confined open stood in the way.
-	if b, err := os.ReadFile(filepath.Join(root, "sub", "f")); err != nil || string(b) != "inside" {
+	if errors.Is(err, ErrNotRegular) {
+		t.Errorf("the refusal came after the open (%v): the open reached the outside file", err)
+	}
+	// Negative control: an open by path does reach the outside file.
+	if b, err := os.ReadFile(filepath.Join(root, "sub", "f")); err != nil || string(b) != "OUTSIDE-SECRET" {
 		t.Fatalf("the swap did not take effect (%q, %v): the test proved nothing", b, err)
 	}
 }
+

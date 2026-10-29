@@ -1,6 +1,6 @@
 package attest
 
-// The named review's probes for the recipes in docs/DIGEST.md: each recipe, run exactly as written, prints what the Go
+// The recipes in docs/DIGEST.md, run exactly as written, print what the Go
 // code computes, including for names that hold a quote or a backslash.
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/saphan-ai/discover/internal/fixture"
 )
 
-func probeTree(t *testing.T, root string, extra map[string]string) {
+func oddTree(t *testing.T, root string, extra map[string]string) {
 	t.Helper()
 	files := map[string]string{
 		"with space.txt":      "s\n",
@@ -36,10 +36,10 @@ func probeTree(t *testing.T, root string, extra map[string]string) {
 	os.Symlink("../with space.txt", filepath.Join(root, "nested", "up link"))
 }
 
-func TestProbeP4RecipeDir(t *testing.T) {
+func TestRecipeDirAgreesForOddNames(t *testing.T) {
 	root := filepath.Join(realTemp(t), "plain tree")
 	os.Mkdir(root, 0o755)
-	probeTree(t, root, nil)
+	oddTree(t, root, nil)
 	a, err := Attest(root, Options{})
 	if err != nil {
 		t.Fatal(err)
@@ -51,10 +51,10 @@ func TestProbeP4RecipeDir(t *testing.T) {
 	}
 }
 
-func gitProbe(t *testing.T, extra map[string]string) string {
+func oddGitTree(t *testing.T, extra map[string]string) string {
 	root := filepath.Join(realTemp(t), "git tree")
 	os.Mkdir(root, 0o755)
-	probeTree(t, root, extra)
+	oddTree(t, root, extra)
 	fixture.Git(t, root, "init", "-q")
 	fixture.Git(t, root, "add", "-A")
 	fixture.Git(t, root, "commit", "-q", "-m", "fixture")
@@ -81,17 +81,17 @@ func compareGit(t *testing.T, root string) {
 	}
 }
 
-func TestProbeP4RecipeGit(t *testing.T) { compareGit(t, gitProbe(t, nil)) }
+func TestRecipeGitAgreesForOddNames(t *testing.T) { compareGit(t, oddGitTree(t, nil)) }
 
 // Git quotes a name holding `"` or `\` even with core.quotepath=off when -z is absent.
-func TestProbeP4RecipeGitQuoteInName(t *testing.T) {
-	compareGit(t, gitProbe(t, map[string]string{`say "hi".txt`: "q\n", `back\slash.txt`: "b\n"}))
+func TestRecipeGitAgreesForQuoteAndBackslashInName(t *testing.T) {
+	compareGit(t, oddGitTree(t, map[string]string{`say "hi".txt`: "q\n", `back\slash.txt`: "b\n"}))
 }
 
-func TestProbeP4RecipeDirQuoteInName(t *testing.T) {
+func TestRecipeDirAgreesForQuoteAndBackslashInName(t *testing.T) {
 	root := filepath.Join(realTemp(t), "plain q")
 	os.Mkdir(root, 0o755)
-	probeTree(t, root, map[string]string{`say "hi".txt`: "q\n", `back\slash.txt`: "b\n"})
+	oddTree(t, root, map[string]string{`say "hi".txt`: "q\n", `back\slash.txt`: "b\n"})
 	a, _ := Attest(root, Options{})
 	if sh := shell(t, "recipe-dir", root); sh != a.Tree.Digest {
 		t.Errorf("recipe-dir disagrees with quote/backslash: go %s sh %s", a.Tree.Digest, sh)

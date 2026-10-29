@@ -15,8 +15,8 @@ import (
 // A regular file is swapped for a FIFO between the check and the open. An open of a FIFO with no writer blocks for
 // ever unless it is non-blocking, so a scan of a hostile tree could hang. The swapper races the reader: the reader
 // must finish, whatever it opened.
-func TestProbeP2FifoSwappedInDoesNotHangTheRead(t *testing.T) {
-	b := rbase(t)
+func TestFifoSwappedInDoesNotHangTheRead(t *testing.T) {
+	b := scratch(t)
 	r := filepath.Join(b, "root")
 	os.Mkdir(r, 0o755)
 	f := filepath.Join(r, "f")
