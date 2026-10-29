@@ -1,0 +1,100 @@
+{
+  "extensions": {
+    "example": {
+      "any": [
+        "content",
+        1
+      ]
+    }
+  },
+  "repos": [],
+  "scan": {
+    "finished": "2026-10-28T10:00:05+02:00",
+    "read_only_proof_all_equal": false,
+    "started": "2026-10-28T10:00:00Z",
+    "targets": [
+      {
+        "mode": "git",
+        "path": "api"
+      },
+      {
+        "mode": "git",
+        "path": "web"
+      }
+    ]
+  },
+  "schema_version": "discover/v1",
+  "tool": {
+    "commit": "abc1234",
+    "name": "discover",
+    "version": "0.1.0"
+  },
+  "workspace_profile": {
+    "repos": [
+      {
+        "ci": [
+          {
+            "source": {
+              "file": ".github/workflows/ci.yml",
+              "line": 1
+            },
+            "system": "github-actions"
+          }
+        ],
+        "commands": {
+          "build": [
+            {
+              "source": {
+                "file": "Makefile",
+                "line": 4
+              },
+              "text": "make build"
+            }
+          ],
+          "run": [],
+          "test": [
+            {
+              "source": {
+                "file": "Makefile",
+                "line": 12
+              },
+              "text": "go test ./..."
+            }
+          ]
+        },
+        "convention_files": [
+          "Makefile"
+        ],
+        "languages": [
+          "Go"
+        ],
+        "name": "api",
+        "relative_path": "api",
+        "vcs": "git"
+      },
+      {
+        "ci": [],
+        "commands": {
+          "build": [],
+          "run": [
+            {
+              "source": {
+                "file": "package.json",
+                "key": "scripts.start"
+              },
+              "text": "npm start"
+            }
+          ],
+          "test": []
+        },
+        "convention_files": [],
+        "languages": [
+          "TypeScript"
+        ],
+        "name": "web",
+        "relative_path": "web",
+        "vcs": "git"
+      }
+    ]
+  }
+}

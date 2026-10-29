@@ -1,0 +1,60 @@
+{
+  "schema_version": "discover/v1",
+  "tool": { "name": "discover", "version": "0.1.0", "commit": "abc1234" },
+  "scan": {
+    "started": "2026-10-28T10:00:00Z",
+    "finished": "2026-10-28T10:00:01Z",
+    "targets": [{ "path": ".", "mode": "dir" }],
+    "read_only_proof_all_equal": true
+  },
+  "repos": [
+    {
+      "name": "empty",
+      "attestation": {
+        "root": "empty",
+        "mode": "dir",
+        "tree": { "files": 0, "bytes": 0, "links": 0, "submodules": 0, "unreadable": 0, "digest": "0000000000000000000000000000000000000000000000000000000000000000" },
+        "read_only_proof": { "status": "EQUAL", "before": "0000000000000000000000000000000000000000000000000000000000000000", "after": "0000000000000000000000000000000000000000000000000000000000000000" },
+        "read_manifest": { "entries": [], "files_read": 0, "bytes_read": 0 }
+      },
+      "inventory": { "top_level": [], "languages": [], "files_total": 0, "bytes_total": 0 },
+      "stack": [],
+      "structure": { "patterns": [], "naming": [], "architecture": [] },
+      "entry_points": [],
+      "commands": [],
+      "ci": [],
+      "containers": [],
+      "wiring": [],
+      "findings": [],
+      "ui": [],
+      "narrative": { "claims": [] },
+      "open_questions": [],
+      "recommendations": [],
+      "absent": [
+        { "section": 1, "reason": "the directory holds no files" },
+        { "section": 2, "reason": "no manifest or build file was found" },
+        { "section": 3, "reason": "no source files were found" },
+        { "section": 4, "reason": "no entry points were found" },
+        { "section": 5, "reason": "no build, run or test commands were found" },
+        { "section": 6, "reason": "no dependency declarations were found" },
+        { "section": 7, "reason": "nothing was read, so nothing was found" },
+        { "section": 8, "reason": "no user interface strings were found" },
+        { "section": 9, "reason": "nothing was found to ask about" },
+        { "section": 10, "reason": "nothing was found to recommend" }
+      ]
+    }
+  ],
+  "workspace_profile": {
+    "repos": [
+      {
+        "name": "empty",
+        "relative_path": ".",
+        "vcs": "none",
+        "languages": [],
+        "commands": { "build": [], "test": [], "run": [] },
+        "convention_files": [],
+        "ci": []
+      }
+    ]
+  }
+}

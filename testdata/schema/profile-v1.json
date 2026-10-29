@@ -1,0 +1,42 @@
+{
+  "repos": [
+    {
+      "name": "api",
+      "relative_path": "api",
+      "vcs": "git",
+      "languages": ["Go", "SQL"],
+      "commands": {
+        "build": [{ "text": "make build", "source": { "file": "Makefile", "line": 4 } }],
+        "test": [
+          { "text": "go vet ./... && go test ./...", "source": { "file": "Makefile", "line": 12 } },
+          { "text": "go test -race ./...", "source": { "file": ".github/workflows/ci.yml", "line": 20 } }
+        ],
+        "run": [{ "text": "./bin/api serve", "source": { "file": "README.md", "line": 30 } }]
+      },
+      "convention_files": ["AGENTS.md", "CONTRIBUTING.md", ".editorconfig", ".github/workflows/ci.yml"],
+      "ci": [{ "system": "github-actions", "source": { "file": ".github/workflows/ci.yml", "line": 1 } }]
+    },
+    {
+      "name": "web",
+      "relative_path": "apps/web",
+      "vcs": "git",
+      "languages": ["TypeScript", "CSS"],
+      "commands": {
+        "build": [{ "text": "npm run build", "source": { "file": "package.json", "key": "scripts.build" } }],
+        "test": [{ "text": "npm test", "source": { "file": "package.json", "key": "scripts.test" } }],
+        "run": [{ "text": "npm start", "source": { "file": "package.json", "key": "scripts.start" } }]
+      },
+      "convention_files": ["CLAUDE.md"],
+      "ci": []
+    },
+    {
+      "name": "notes",
+      "relative_path": "notes",
+      "vcs": "none",
+      "languages": [],
+      "commands": { "build": [], "test": [], "run": [] },
+      "convention_files": [],
+      "ci": []
+    }
+  ]
+}

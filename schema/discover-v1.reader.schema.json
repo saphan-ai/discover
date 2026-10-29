@@ -1,0 +1,1121 @@
+{
+  "$comment": "Generated from discover-v1.schema.json by a test in internal/model; never edited by hand. A v1 reader ignores unknown properties everywhere except inside a finding.",
+  "$defs": {
+    "absent": {
+      "properties": {
+        "reason": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "section": {
+          "maximum": 10,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "section",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "attestation": {
+      "else": {
+        "not": {
+          "anyOf": [
+            {
+              "required": [
+                "git"
+              ]
+            },
+            {
+              "required": [
+                "untracked"
+              ]
+            }
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "mode": {
+            "const": "git"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "properties": {
+        "git": {
+          "$ref": "#/$defs/git_state"
+        },
+        "mode": {
+          "enum": [
+            "git",
+            "dir"
+          ]
+        },
+        "read_manifest": {
+          "$ref": "#/$defs/read_manifest"
+        },
+        "read_only_proof": {
+          "$ref": "#/$defs/read_only_proof"
+        },
+        "root": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "tree": {
+          "$ref": "#/$defs/tree"
+        },
+        "untracked": {
+          "$ref": "#/$defs/tree"
+        }
+      },
+      "required": [
+        "root",
+        "mode",
+        "tree",
+        "read_only_proof",
+        "read_manifest"
+      ],
+      "then": {
+        "required": [
+          "git"
+        ]
+      },
+      "type": "object"
+    },
+    "ci": {
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "system": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "system",
+        "source"
+      ],
+      "type": "object"
+    },
+    "claim": {
+      "properties": {
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/source"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "citations"
+      ],
+      "type": "object"
+    },
+    "closed_source": {
+      "additionalProperties": false,
+      "anyOf": [
+        {
+          "required": [
+            "key"
+          ]
+        },
+        {
+          "required": [
+            "line"
+          ]
+        }
+      ],
+      "properties": {
+        "file": {
+          "minLength": 1,
+          "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+          "type": "string"
+        },
+        "key": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "line": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "command": {
+      "properties": {
+        "executed": {
+          "const": false
+        },
+        "kind": {
+          "enum": [
+            "build",
+            "run",
+            "test",
+            "lint"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "source",
+        "executed"
+      ],
+      "type": "object"
+    },
+    "container": {
+      "properties": {
+        "image": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "dockerfile",
+            "compose",
+            "kubernetes",
+            "other"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        }
+      },
+      "required": [
+        "kind",
+        "source"
+      ],
+      "type": "object"
+    },
+    "digest": {
+      "pattern": "^[0-9a-f]{64}$",
+      "type": "string"
+    },
+    "entry_point": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "main",
+            "cli",
+            "server",
+            "worker",
+            "library",
+            "script",
+            "other"
+          ]
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        }
+      },
+      "required": [
+        "kind",
+        "name",
+        "source"
+      ],
+      "type": "object"
+    },
+    "finding": {
+      "additionalProperties": false,
+      "else": {
+        "not": {
+          "required": [
+            "secret_type"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "secret"
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      },
+      "properties": {
+        "kind": {
+          "enum": [
+            "hot_spot",
+            "anti_pattern",
+            "secret",
+            "dead_code_candidate",
+            "todo",
+            "prompt_injection"
+          ]
+        },
+        "secret_type": {
+          "minLength": 1,
+          "pattern": "^[a-z0-9][a-z0-9-]{0,63}$",
+          "type": "string"
+        },
+        "severity": {
+          "enum": [
+            "info",
+            "low",
+            "medium",
+            "high"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/closed_source"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "severity",
+        "source"
+      ],
+      "then": {
+        "not": {
+          "required": [
+            "text"
+          ]
+        },
+        "properties": {
+          "source": {
+            "properties": {
+              "key": {
+                "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-\\[\\]]{0,127}$"
+              }
+            }
+          }
+        },
+        "required": [
+          "secret_type"
+        ]
+      },
+      "type": "object"
+    },
+    "git_state": {
+      "properties": {
+        "branch": {
+          "type": "string"
+        },
+        "clean": {
+          "type": "boolean"
+        },
+        "detached": {
+          "type": "boolean"
+        },
+        "dirty_paths": {
+          "items": {
+            "minLength": 1,
+            "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "head": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "branch",
+        "detached",
+        "head",
+        "clean",
+        "dirty_paths"
+      ],
+      "type": "object"
+    },
+    "inventory": {
+      "properties": {
+        "bytes_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "files_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "languages": {
+          "items": {
+            "$ref": "#/$defs/language_share"
+          },
+          "type": "array"
+        },
+        "top_level": {
+          "items": {
+            "$ref": "#/$defs/top_level_entry"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "top_level",
+        "languages",
+        "files_total",
+        "bytes_total"
+      ],
+      "type": "object"
+    },
+    "language_share": {
+      "properties": {
+        "files": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "files"
+      ],
+      "type": "object"
+    },
+    "manifest_entry": {
+      "properties": {
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "path": {
+          "minLength": 1,
+          "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "bytes"
+      ],
+      "type": "object"
+    },
+    "narrative": {
+      "properties": {
+        "claims": {
+          "items": {
+            "$ref": "#/$defs/claim"
+          },
+          "type": "array"
+        },
+        "model": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "claims"
+      ],
+      "type": "object"
+    },
+    "observation": {
+      "properties": {
+        "examples": {
+          "items": {
+            "$ref": "#/$defs/source"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "examples"
+      ],
+      "type": "object"
+    },
+    "open_question": {
+      "properties": {
+        "context": {
+          "$ref": "#/$defs/source"
+        },
+        "options": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 3,
+          "minItems": 2,
+          "type": "array"
+        },
+        "question": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "topic": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "topic",
+        "question",
+        "context",
+        "options"
+      ],
+      "type": "object"
+    },
+    "profile_command": {
+      "properties": {
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "source"
+      ],
+      "type": "object"
+    },
+    "profile_commands": {
+      "properties": {
+        "build": {
+          "items": {
+            "$ref": "#/$defs/profile_command"
+          },
+          "type": "array"
+        },
+        "run": {
+          "items": {
+            "$ref": "#/$defs/profile_command"
+          },
+          "type": "array"
+        },
+        "test": {
+          "items": {
+            "$ref": "#/$defs/profile_command"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "build",
+        "test",
+        "run"
+      ],
+      "type": "object"
+    },
+    "profile_repo": {
+      "properties": {
+        "ci": {
+          "items": {
+            "$ref": "#/$defs/ci"
+          },
+          "type": "array"
+        },
+        "commands": {
+          "$ref": "#/$defs/profile_commands"
+        },
+        "convention_files": {
+          "items": {
+            "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "languages": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "relative_path": {
+          "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+          "type": "string"
+        },
+        "vcs": {
+          "enum": [
+            "git",
+            "none"
+          ]
+        }
+      },
+      "required": [
+        "name",
+        "relative_path",
+        "vcs",
+        "languages",
+        "commands",
+        "convention_files",
+        "ci"
+      ],
+      "type": "object"
+    },
+    "read_manifest": {
+      "properties": {
+        "bytes_read": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "entries": {
+          "items": {
+            "$ref": "#/$defs/manifest_entry"
+          },
+          "type": "array"
+        },
+        "files_read": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "entries",
+        "files_read",
+        "bytes_read"
+      ],
+      "type": "object"
+    },
+    "read_only_proof": {
+      "properties": {
+        "after": {
+          "$ref": "#/$defs/digest"
+        },
+        "before": {
+          "$ref": "#/$defs/digest"
+        },
+        "status": {
+          "enum": [
+            "EQUAL",
+            "NOT-EQUAL"
+          ]
+        }
+      },
+      "required": [
+        "status",
+        "before",
+        "after"
+      ],
+      "type": "object"
+    },
+    "recommendation": {
+      "properties": {
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/source"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "text",
+        "citations"
+      ],
+      "type": "object"
+    },
+    "repo": {
+      "properties": {
+        "absent": {
+          "items": {
+            "$ref": "#/$defs/absent"
+          },
+          "type": "array"
+        },
+        "attestation": {
+          "$ref": "#/$defs/attestation"
+        },
+        "ci": {
+          "items": {
+            "$ref": "#/$defs/ci"
+          },
+          "type": "array"
+        },
+        "commands": {
+          "items": {
+            "$ref": "#/$defs/command"
+          },
+          "type": "array"
+        },
+        "containers": {
+          "items": {
+            "$ref": "#/$defs/container"
+          },
+          "type": "array"
+        },
+        "entry_points": {
+          "items": {
+            "$ref": "#/$defs/entry_point"
+          },
+          "type": "array"
+        },
+        "findings": {
+          "contains": {
+            "properties": {
+              "kind": {
+                "const": "todo"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "type": "object"
+          },
+          "items": {
+            "$ref": "#/$defs/finding"
+          },
+          "maxContains": 30,
+          "minContains": 0,
+          "type": "array"
+        },
+        "inventory": {
+          "$ref": "#/$defs/inventory"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "narrative": {
+          "$ref": "#/$defs/narrative"
+        },
+        "open_questions": {
+          "items": {
+            "$ref": "#/$defs/open_question"
+          },
+          "type": "array"
+        },
+        "recommendations": {
+          "items": {
+            "$ref": "#/$defs/recommendation"
+          },
+          "type": "array"
+        },
+        "stack": {
+          "items": {
+            "$ref": "#/$defs/stack_row"
+          },
+          "type": "array"
+        },
+        "structure": {
+          "$ref": "#/$defs/structure"
+        },
+        "ui": {
+          "items": {
+            "$ref": "#/$defs/ui_item"
+          },
+          "type": "array"
+        },
+        "wiring": {
+          "items": {
+            "$ref": "#/$defs/wiring"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "attestation",
+        "inventory",
+        "stack",
+        "structure",
+        "entry_points",
+        "commands",
+        "ci",
+        "containers",
+        "wiring",
+        "findings",
+        "ui",
+        "narrative",
+        "open_questions",
+        "recommendations",
+        "absent"
+      ],
+      "type": "object"
+    },
+    "scan": {
+      "properties": {
+        "finished": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "read_only_proof_all_equal": {
+          "type": "boolean"
+        },
+        "started": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "targets": {
+          "items": {
+            "$ref": "#/$defs/target"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "started",
+        "finished",
+        "targets",
+        "read_only_proof_all_equal"
+      ],
+      "type": "object"
+    },
+    "source": {
+      "anyOf": [
+        {
+          "required": [
+            "key"
+          ]
+        },
+        {
+          "required": [
+            "line"
+          ]
+        }
+      ],
+      "properties": {
+        "file": {
+          "minLength": 1,
+          "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$",
+          "type": "string"
+        },
+        "key": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "line": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "file"
+      ],
+      "type": "object"
+    },
+    "stack_row": {
+      "else": {
+        "not": {
+          "required": [
+            "version_note"
+          ]
+        }
+      },
+      "if": {
+        "properties": {
+          "version": {
+            "type": "null"
+          }
+        },
+        "required": [
+          "version"
+        ]
+      },
+      "properties": {
+        "layer": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "technology": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "version_note": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "layer",
+        "technology",
+        "version",
+        "source"
+      ],
+      "then": {
+        "properties": {
+          "version_note": {
+            "const": "not pinned"
+          }
+        },
+        "required": [
+          "version_note"
+        ]
+      },
+      "type": "object"
+    },
+    "structure": {
+      "properties": {
+        "architecture": {
+          "items": {
+            "$ref": "#/$defs/observation"
+          },
+          "type": "array"
+        },
+        "naming": {
+          "items": {
+            "$ref": "#/$defs/observation"
+          },
+          "type": "array"
+        },
+        "patterns": {
+          "items": {
+            "$ref": "#/$defs/observation"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "patterns",
+        "naming",
+        "architecture"
+      ],
+      "type": "object"
+    },
+    "target": {
+      "properties": {
+        "mode": {
+          "enum": [
+            "git",
+            "dir"
+          ]
+        },
+        "path": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "mode"
+      ],
+      "type": "object"
+    },
+    "tool": {
+      "properties": {
+        "commit": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "version": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "version",
+        "commit"
+      ],
+      "type": "object"
+    },
+    "top_level_entry": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "file",
+            "dir",
+            "symlink",
+            "other"
+          ]
+        },
+        "name": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "kind"
+      ],
+      "type": "object"
+    },
+    "tree": {
+      "properties": {
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "files": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "links": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "submodules": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "unreadable": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "files",
+        "bytes",
+        "links",
+        "submodules",
+        "unreadable",
+        "digest"
+      ],
+      "type": "object"
+    },
+    "ui_item": {
+      "properties": {
+        "kind": {
+          "enum": [
+            "string",
+            "screen"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "text": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "text",
+        "source"
+      ],
+      "type": "object"
+    },
+    "wiring": {
+      "properties": {
+        "relation": {
+          "enum": [
+            "depends_on",
+            "depended_on_by",
+            "calls",
+            "called_by",
+            "shares"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "target": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "target",
+        "relation",
+        "source"
+      ],
+      "type": "object"
+    },
+    "workspace_profile": {
+      "properties": {
+        "repos": {
+          "items": {
+            "$ref": "#/$defs/profile_repo"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "repos"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/saphan-ai/discover/schema/discover-v1.reader.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "The report discover writes after a scan. Every claim carries a source; a secret is named by location and type, never by value.",
+  "properties": {
+    "extensions": {
+      "type": "object"
+    },
+    "repos": {
+      "items": {
+        "$ref": "#/$defs/repo"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "scan": {
+      "$ref": "#/$defs/scan"
+    },
+    "schema_version": {
+      "const": "discover/v1"
+    },
+    "tool": {
+      "$ref": "#/$defs/tool"
+    },
+    "workspace_profile": {
+      "$ref": "#/$defs/workspace_profile"
+    }
+  },
+  "required": [
+    "schema_version",
+    "tool",
+    "scan",
+    "repos",
+    "workspace_profile"
+  ],
+  "title": "discover report, schema v1, reader variant",
+  "type": "object"
+}

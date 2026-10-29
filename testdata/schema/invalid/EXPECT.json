@@ -1,0 +1,207 @@
+{
+  "absent-section-11.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/absent/0/section",
+    "refused_at": "/repos/0/absent/0/section"
+  },
+  "attestation-git-missing.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/git",
+    "refused_at": "/repos/0/attestation/git"
+  },
+  "attestation-mode-workspace.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/mode",
+    "refused_at": "/repos/0/attestation/mode"
+  },
+  "command-executed-missing.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/commands/0/executed",
+    "refused_at": "/repos/0/commands/0/executed"
+  },
+  "command-executed-true.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/commands/0/executed",
+    "refused_at": "/repos/0/commands/0/executed"
+  },
+  "command-kind-unknown.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/commands/1/kind",
+    "refused_at": "/repos/0/commands/1/kind"
+  },
+  "extensions-not-an-object.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/extensions",
+    "refused_at": "/extensions"
+  },
+  "finding-kind-unknown.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/1/findings/0/kind",
+    "refused_at": "/repos/1/findings/0/kind"
+  },
+  "finding-secret-type-on-todo.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/1/secret_type",
+    "refused_at": "/repos/0/findings/1"
+  },
+  "manifest-digest-short.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/read_manifest/entries/0/sha256",
+    "refused_at": "/repos/0/attestation/read_manifest/entries/0/sha256"
+  },
+  "narrative-claim-empty-citations.json": {
+    "base": "valid/with-narrative.json",
+    "mutated": "/repos/0/narrative/claims/0/citations",
+    "refused_at": "/repos/0/narrative/claims/0/citations"
+  },
+  "open-question-one-option.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/open_questions/0/options",
+    "refused_at": "/repos/0/open_questions/0/options"
+  },
+  "profile-absolute-path.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/workspace_profile/repos/0/relative_path",
+    "refused_at": "/workspace_profile/repos/0/relative_path"
+  },
+  "profile-vcs-unknown.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/workspace_profile/repos/0/vcs",
+    "refused_at": "/workspace_profile/repos/0/vcs"
+  },
+  "read-only-proof-before-63-hex.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/read_only_proof/before",
+    "refused_at": "/repos/0/attestation/read_only_proof/before"
+  },
+  "read-only-proof-status-same.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/read_only_proof/status",
+    "refused_at": "/repos/0/attestation/read_only_proof/status"
+  },
+  "repo-section-missing.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/wiring",
+    "refused_at": "/repos/0/wiring"
+  },
+  "repos-empty.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos",
+    "refused_at": "/repos"
+  },
+  "scan-started-not-a-date.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/scan/started",
+    "refused_at": "/scan/started"
+  },
+  "scan-target-mode-workspace.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/scan/targets/0/mode",
+    "refused_at": "/scan/targets/0/mode"
+  },
+  "schema-version-v2.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/schema_version",
+    "refused_at": "/schema_version"
+  },
+  "secret-finding-has-text.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/0/text",
+    "refused_at": "/repos/0/findings/0"
+  },
+  "secret-finding-has-value.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/0/value",
+    "refused_at": "/repos/0/findings/0/value"
+  },
+  "secret-finding-no-secret-type.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/0/secret_type",
+    "refused_at": "/repos/0/findings/0"
+  },
+  "source-absolute-path.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/0/source/file",
+    "refused_at": "/repos/0/stack/0/source/file"
+  },
+  "source-line-zero.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/entry_points/0/source/line",
+    "refused_at": "/repos/0/entry_points/0/source/line"
+  },
+  "source-no-locator.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/0/source/key",
+    "refused_at": "/repos/0/stack/0/source"
+  },
+  "stack-row-no-source.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/0/source",
+    "refused_at": "/repos/0/stack/0/source"
+  },
+  "stack-version-null-no-note.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/1/version_note",
+    "refused_at": "/repos/0/stack/1"
+  },
+  "stack-version-null-wrong-note.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/1/version_note",
+    "refused_at": "/repos/0/stack/1/version_note"
+  },
+  "stack-version-set-with-note.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/0/version_note",
+    "refused_at": "/repos/0/stack/0"
+  },
+  "tool-no-commit.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/tool/commit",
+    "refused_at": "/tool/commit"
+  },
+  "tree-digest-uppercase.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/tree/digest",
+    "refused_at": "/repos/0/attestation/tree/digest"
+  },
+  "secret-type-has-value.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/0/secret_type",
+    "refused_at": "/repos/0/findings/0/secret_type"
+  },
+  "secret-source-key-has-value.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/0/source/key",
+    "refused_at": "/repos/0/findings/0/source/key"
+  },
+  "profile-relative-path-parent-climb.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/workspace_profile/repos/0/relative_path",
+    "refused_at": "/workspace_profile/repos/0/relative_path"
+  },
+  "profile-convention-file-drive-letter.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/workspace_profile/repos/0/convention_files/0",
+    "refused_at": "/workspace_profile/repos/0/convention_files/0"
+  },
+  "source-file-parent-segment.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/0/source/file",
+    "refused_at": "/repos/0/stack/0/source/file"
+  },
+  "git-dirty-path-parent-climb.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/1/attestation/git/dirty_paths/0",
+    "refused_at": "/repos/1/attestation/git/dirty_paths/0"
+  },
+  "manifest-path-drive-letter.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/read_manifest/entries/0/path",
+    "refused_at": "/repos/0/attestation/read_manifest/entries/0/path"
+  },
+  "unknown-top-level-field.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/cross_repo_summary",
+    "refused_at": "/cross_repo_summary"
+  }
+}
