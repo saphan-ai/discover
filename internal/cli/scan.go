@@ -265,6 +265,9 @@ func inside(p, root string) bool {
 	}
 }
 
+// createdDirInsideTarget is a stub for the red commit.
+func createdDirInsideTarget(dir string, targets []target) (target, bool) { return target{}, false }
+
 // freeName returns label, or the first label-N (N from 2) that no earlier target took, and marks it taken.
 func freeName(used map[string]bool, label string) string {
 	if label == "/" || label == "." || label == string(filepath.Separator) {
