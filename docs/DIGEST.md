@@ -16,7 +16,8 @@ yourself with `find` and `shasum -a 256` and compare.
 3. Paths are relative to the target root and use forward slashes. No leading `./`. A path or a link target is
    escaped before it goes into a line: a backslash becomes `\\`, a newline becomes `\n` (a backslash and an `n`), and
    `>` becomes `\>`. No name can therefore end a line early or forge the ` -> ` that separates a link from its
-   target: two different trees never give the same lines.
+   target. This makes the encoding of a name injective. It does not make the digest injective over trees: an
+   `unreadable` line carries only the path (see "Not covered").
 4. Sort the lines bytewise (`LC_ALL=C sort`).
 5. Write every line followed by one newline, and hash the whole with SHA-256. The digest is the lowercase hex.
 
@@ -36,6 +37,13 @@ Not covered:
   as `unreadable`. A scan can update an access time on some filesystems; that is the operating system's doing and no
   part of the digest.
 - **In git mode, ignored paths and the inside of `.git/`.** See "Which files".
+- **What an unreadable entry was.** An `unreadable` line holds the path and nothing else. An unreadable directory and
+  an unreadable file of the same name give the same line, and so do two unreadable files of different content: a
+  change from one to the other gives EQUAL. The scan counts unreadable entries and prints the count.
+- **In a plain directory, a FIFO, a socket or a device file.** It is not a line. One created or removed between the
+  two passes gives EQUAL.
+- **In git mode, entries marked `assume-unchanged` or `skip-worktree`.** The dirty count does not account for them:
+  it hashes the files itself, but the index flags that tell git to ignore a path are not read.
 
 A file name that holds a newline is digested by `discover`, and the shell recipes below cannot reproduce it (they read
 one name per line). Every other name, including a space, a quote, a backslash and non-ASCII text, they reproduce.
@@ -158,11 +166,23 @@ when nothing the proof covers differs between the two passes, and
 read-only proof: NOT-EQUAL <before> <after>
 ```
 
-with exit code 3 when the tree digest does. A difference in another part of the proof prints its own line with the
-part named after the two values: `(untracked)` for the untracked digest, `(head)`, `(branch)`, `(detached)`,
-`(dirty-paths)` or `(mode)`.
+when the tree digest differs. A difference in another part of the proof prints its own line with the part named after
+the two values: `(untracked)` for the untracked digest, `(head)`, `(branch)`, `(detached)`, `(dirty-paths)` or
+`(mode)`. The exit code is 3 on any one of these differences. `ATTESTATION.json` carries the same scope text in
+`read_only_proof.scope`.
 
 What the proof does not say: it compares at two moments. A file changed and changed back between the moments gives
 EQUAL, and so does anything in the "Not covered" lists above. The scan itself opens files read-only through a handle
 confined to the target, never changes a mode or a modification time, never asks git to compare the working tree, and
 runs git with optional locks off and a deadline (`--git-timeout`, 60 seconds by default) on every call.
+
+Git is run in a fixed environment. Every `GIT_*` variable of the caller is removed (a `GIT_DIR` set by a git hook
+must not make the scan read another repository), git is told not to fetch missing objects (`GIT_NO_LAZY_FETCH=1`, so
+a partial clone's remote, which can name a program, is never contacted), and git is not allowed to look above the
+target for a repository. Git older than 2.45 does not honour the no-fetch switch, so git mode refuses it by name
+instead of reading without the guarantee. Several targets are written to `<out>/<label>`; a scan whose `<out>/<label>`
+is a target or lies inside one is refused before anything is read.
+
+One check runs only on some hosts: the test that an `--out` spelled with another letter case is refused needs a
+case-insensitive file system (the macOS default) and is skipped elsewhere, so CI on Linux does not run it. The
+comparison of identities it relies on is tested on every host with a symlinked parent and `.` and `..` segments.
