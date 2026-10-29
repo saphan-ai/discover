@@ -79,22 +79,79 @@ func Marshal(r *Report) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
+// maxDepth bounds how deep a document may nest; the decoder below recurses.
+const maxDepth = 1000
+
+// decodeChecked reads one JSON value into the generic tree, like json.Decoder.Decode, except that a member name
+// repeated within one object is recorded as a problem and its later value dropped. Go's own decoder keeps the last
+// of a repeated name; another reader keeps the first, so what a document means would depend on the reader.
+func decodeChecked(dec *json.Decoder, path string, depth int, problems *[]Problem) (any, error) {
+	if depth > maxDepth {
+		return nil, fmt.Errorf("nested more than %d levels deep", maxDepth)
+	}
+	tok, err := dec.Token()
+	if err != nil {
+		return nil, err
+	}
+	d, ok := tok.(json.Delim)
+	if !ok {
+		return tok, nil
+	}
+	if d == '{' {
+		m := map[string]any{}
+		for dec.More() {
+			kt, err := dec.Token()
+			if err != nil {
+				return nil, err
+			}
+			key := kt.(string)
+			v, err := decodeChecked(dec, path+"/"+key, depth+1, problems)
+			if err != nil {
+				return nil, err
+			}
+			if _, dup := m[key]; dup {
+				*problems = append(*problems, Problem{Path: path + "/" + key, Message: "member name " + key + " appears more than once; a document may carry each name once"})
+				continue
+			}
+			m[key] = v
+		}
+		_, err := dec.Token()
+		return m, err
+	}
+	a := []any{}
+	for dec.More() {
+		v, err := decodeChecked(dec, path+"/"+strconv.Itoa(len(a)), depth+1, problems)
+		if err != nil {
+			return nil, err
+		}
+		a = append(a, v)
+	}
+	_, err = dec.Token()
+	return a, err
+}
+
 func validate(data []byte, dst any, strict bool) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
-	var doc any
-	if err := dec.Decode(&doc); err != nil {
+	var problems []Problem
+	doc, err := decodeChecked(dec, "", 0, &problems)
+	if err != nil {
 		return &Error{Problems: []Problem{{Message: "not valid JSON: " + err.Error()}}}
 	}
 	if _, err := dec.Token(); err != io.EOF {
 		return &Error{Problems: []Problem{{Message: "not valid JSON: data after the document"}}}
 	}
-	var problems []Problem
 	walk(doc, reflect.TypeOf(dst).Elem(), "", "", strict, &problems)
 	if len(problems) > 0 {
 		return &Error{Problems: problems}
 	}
-	if err := json.Unmarshal(data, dst); err != nil {
+	// The typed value is built from the tree that was just checked, never from a second reading of data: that
+	// reading would match member names without regard to case and could take a member the walk never saw.
+	checked, err := json.Marshal(doc)
+	if err != nil {
+		return &Error{Problems: []Problem{{Message: "cannot re-encode the checked document: " + err.Error()}}}
+	}
+	if err := json.Unmarshal(checked, dst); err != nil {
 		return &Error{Problems: []Problem{{Message: "cannot read into the report types: " + err.Error()}}}
 	}
 	check(reflect.ValueOf(dst).Elem(), "", &problems)
@@ -176,16 +233,20 @@ func walk(v any, t reflect.Type, tag reflect.StructTag, path string, closed bool
 			}
 			walk(fv, sf.Type, sf.Tag, path+"/"+f.name, closed, out)
 		}
-		if !closed {
-			return
-		}
 		keys := make([]string, 0, len(m))
 		for k := range m {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		for _, k := range keys {
-			if !known[k] {
+			if known[k] {
+				continue
+			}
+			// A name that differs from a field's only in case is refused in both modes: encoding/json and some
+			// other readers match it to the field, so it would carry a value the walk never checked.
+			if twin := caseTwin(k, known); twin != "" {
+				*out = append(*out, Problem{Path: path + "/" + k, Message: "member name " + k + " differs from the field " + twin + " only in case; names are matched exactly"})
+			} else if closed {
 				*out = append(*out, Problem{Path: path + "/" + k, Message: "unknown field " + k + "; a writer never writes it, and a reader refuses it inside a finding"})
 			}
 		}
@@ -248,6 +309,16 @@ func walk(v any, t reflect.Type, tag reflect.StructTag, path string, closed bool
 	default:
 		add("unsupported type %s", t)
 	}
+}
+
+// caseTwin returns the known field name that k equals under Unicode case folding, or "".
+func caseTwin(k string, known map[string]bool) string {
+	for name := range known {
+		if strings.EqualFold(k, name) {
+			return name
+		}
+	}
+	return ""
 }
 
 func intTag(tag reflect.StructTag, name string) (int, bool) {
