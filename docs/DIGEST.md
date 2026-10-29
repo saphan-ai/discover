@@ -39,11 +39,12 @@ Not covered:
 - **In git mode, ignored paths and the inside of `.git/`.** See "Which files".
 - **What an unreadable entry was.** An `unreadable` line holds the path and nothing else. An unreadable directory and
   an unreadable file of the same name give the same line, and so do two unreadable files of different content: a
-  change from one to the other gives EQUAL. The scan counts unreadable entries and prints the count.
+  change from one to the other gives EQUAL. The count of unreadable entries is in `ATTESTATION.json`.
 - **In a plain directory, a FIFO, a socket or a device file.** It is not a line. One created or removed between the
   two passes gives EQUAL.
-- **In git mode, entries marked `assume-unchanged` or `skip-worktree`.** The dirty count does not account for them:
-  it hashes the files itself, but the index flags that tell git to ignore a path are not read.
+- **In git mode, the meaning of `assume-unchanged` and `skip-worktree`.** The dirty count does not read these index
+  flags. It hashes the file itself, so a changed path that git has been told to ignore is counted although
+  `git status` shows nothing (measured with git 2.53). The count is therefore not `git status`'s count.
 
 A file name that holds a newline is digested by `discover`, and the shell recipes below cannot reproduce it (they read
 one name per line). Every other name, including a space, a quote, a backslash and non-ASCII text, they reproduce.
