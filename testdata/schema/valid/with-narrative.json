@@ -11,7 +11,7 @@
     {
       "name": "tool",
       "attestation": {
-        "root": "/home/dev/tool",
+        "root": "/srv/work/tool",
         "mode": "git",
         "git": { "branch": "main", "detached": false, "head": "1a2b3c4", "clean": true, "dirty_paths": [] },
         "tree": { "files": 3, "bytes": 1900, "links": 0, "submodules": 0, "unreadable": 0, "digest": "4444444444444444444444444444444444444444444444444444444444444444" },
