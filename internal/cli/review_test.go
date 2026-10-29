@@ -195,13 +195,17 @@ func TestProbeP2ParentSwapBetweenResolveAndOpen(t *testing.T) {
 	os.MkdirAll(outside, 0o755)
 	os.WriteFile(filepath.Join(outside, "f"), []byte("OUTSIDE-SECRET"), 0o644)
 
-	abs, err := safepath.Resolve(r, "sub/f")
+	root, err := safepath.OpenRoot(r)
 	if err != nil {
+		t.Fatal(err)
+	}
+	defer root.Close()
+	if err := root.Check("sub/f"); err != nil {
 		t.Fatal(err)
 	}
 	os.RemoveAll(filepath.Join(r, "sub"))
 	os.Symlink(outside, filepath.Join(r, "sub"))
-	f, _, err := safepath.OpenRegular(abs)
+	f, _, err := root.OpenRegular("sub/f")
 	if err == nil {
 		buf := make([]byte, 64)
 		n, _ := f.Read(buf)

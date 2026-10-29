@@ -2,15 +2,21 @@
 //
 // A target is a git repository (branch, HEAD, clean or dirty) or a plain directory. For both, the attestation holds
 // the file count, the total bytes and the tree digest specified in docs/DIGEST.md. Nothing here writes to the
-// target: files are opened read-only, no mode or time is changed, and git runs with optional locks off.
+// target: files are opened read-only through a confined root, no mode or time is changed, and git runs with optional
+// locks off. Nothing here asks git to compare the work tree, because that is what makes git run the programs the
+// repository's own configuration names (clean filters, in the repository and in its submodules): the dirty state is
+// derived from the index and from discover's own hashing instead.
 package attest
 
 import (
 	"bytes"
+	"context"
+	"crypto/sha1" //nolint:gosec // git's own object id for a blob, never a security digest
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"io/fs"
 	"os"
@@ -18,6 +24,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/saphan-ai/discover/internal/safepath"
 )
@@ -32,12 +39,17 @@ const (
 	ModeDir Mode = "dir"
 )
 
+// DefaultGitTimeout bounds every git call unless Options.GitTimeout says otherwise.
+const DefaultGitTimeout = 60 * time.Second
+
 // Options tune one attestation.
 type Options struct {
 	// RecordRoot records the absolute root. By default only its base name is recorded.
 	RecordRoot bool
 	// GitBin is the git executable; empty means "git".
 	GitBin string
+	// GitTimeout is the deadline of each git call; zero means DefaultGitTimeout.
+	GitTimeout time.Duration
 }
 
 // Tree is the digest of one set of files.
@@ -68,7 +80,17 @@ type Attestation struct {
 	Untracked *Tree     `json:"untracked,omitempty"`
 }
 
-// Attest reads root and returns its attestation. root must be an existing directory.
+// scrubbed is an error whose text no longer names the absolute root.
+type scrubbed struct {
+	msg string
+	err error
+}
+
+func (e *scrubbed) Error() string { return e.msg }
+func (e *scrubbed) Unwrap() error { return e.err }
+
+// Attest reads root and returns its attestation. root must be an existing directory. An error names the target by
+// its base name, never by its absolute path.
 func Attest(root string, opts Options) (Attestation, error) {
 	abs, err := filepath.Abs(root)
 	if err != nil {
@@ -76,8 +98,30 @@ func Attest(root string, opts Options) (Attestation, error) {
 	}
 	real, err := filepath.EvalSymlinks(abs)
 	if err != nil {
-		return Attestation{}, err
+		return Attestation{}, scrub(err, filepath.Base(abs), abs)
 	}
+	a, err := attest(abs, real, opts)
+	if err != nil {
+		err = scrub(err, filepath.Base(abs), real, abs)
+	}
+	return a, err
+}
+
+// scrub replaces every spelling of the root in the error text by the label.
+func scrub(err error, label string, roots ...string) error {
+	msg := err.Error()
+	for _, r := range roots {
+		if r != "" {
+			msg = strings.ReplaceAll(msg, r, label)
+		}
+	}
+	if msg == err.Error() {
+		return err
+	}
+	return &scrubbed{msg: msg, err: err}
+}
+
+func attest(abs, real string, opts Options) (Attestation, error) {
 	fi, err := os.Stat(real)
 	if err != nil {
 		return Attestation{}, err
@@ -89,38 +133,91 @@ func Attest(root string, opts Options) (Attestation, error) {
 	if opts.RecordRoot {
 		a.Root = abs
 	}
-	if _, err := os.Lstat(filepath.Join(real, ".git")); err == nil {
+	root, err := safepath.OpenRoot(real)
+	if err != nil {
+		return a, err
+	}
+	defer root.Close()
+	if _, err := root.Lstat(".git"); err == nil {
 		a.Mode = ModeGit
-		return a, attestGit(real, opts, &a)
+		return a, attestGit(real, root, opts, &a)
 	}
 	a.Mode = ModeDir
-	a.Tree, err = scanDir(real)
+	a.Tree, err = scanDir(root)
 	return a, err
 }
 
-// Diff is one digest that differs between two attestations.
+// Diff is one thing that differs between two attestations.
 type Diff struct {
+	// Field names what differs: tree, untracked, mode, head, branch, detached or dirty-paths.
+	Field string
+	// Untracked is true for the untracked digest.
 	Untracked     bool
 	Before, After string
 }
 
-// Compare lists the digests that differ. An empty result means the tree is unchanged.
+// Compare lists what differs. An empty result means the target is unchanged as far as the proof reaches.
 func Compare(before, after Attestation) []Diff {
 	var d []Diff
-	if before.Tree.Digest != after.Tree.Digest {
-		d = append(d, Diff{false, before.Tree.Digest, after.Tree.Digest})
+	add := func(field, b, a string) {
+		d = append(d, Diff{Field: field, Untracked: field == "untracked", Before: b, After: a})
 	}
-	if before.Untracked != nil && after.Untracked != nil && before.Untracked.Digest != after.Untracked.Digest {
-		d = append(d, Diff{true, before.Untracked.Digest, after.Untracked.Digest})
+	if before.Mode != after.Mode {
+		add("mode", string(before.Mode), string(after.Mode))
+	}
+	if before.Tree.Digest != after.Tree.Digest {
+		add("tree", before.Tree.Digest, after.Tree.Digest)
+	}
+	switch bu, au := before.Untracked, after.Untracked; {
+	case bu == nil && au == nil:
+	case bu == nil || au == nil:
+		add("untracked", digestOrAbsent(bu), digestOrAbsent(au))
+	case bu.Digest != au.Digest:
+		add("untracked", bu.Digest, au.Digest)
+	}
+	if bg, ag := before.Git, after.Git; bg != nil && ag != nil {
+		if bg.Head != ag.Head {
+			add("head", bg.Head, ag.Head)
+		}
+		if bg.Branch != ag.Branch {
+			add("branch", bg.Branch, ag.Branch)
+		}
+		if bg.Detached != ag.Detached {
+			add("detached", fmt.Sprint(bg.Detached), fmt.Sprint(ag.Detached))
+		}
+		if bg.DirtyPaths != ag.DirtyPaths {
+			add("dirty-paths", fmt.Sprint(bg.DirtyPaths), fmt.Sprint(ag.DirtyPaths))
+		}
 	}
 	return d
 }
 
+func digestOrAbsent(t *Tree) string {
+	if t == nil {
+		return "absent"
+	}
+	return t.Digest
+}
+
 // ---- digest ----
 
+// esc makes a path or a link target safe to put in a line: a backslash, a newline and a `>` are escaped, so no name
+// can end a line early or forge the ` -> ` that separates a link from its target. The encoding is injective.
+var esc = strings.NewReplacer(`\`, `\\`, "\n", `\n`, ">", `\>`).Replace
+
+// observed is what a tracked path was in the work tree, in git's vocabulary.
+type observed struct {
+	dir  bool   // a directory (a submodule's work tree)
+	mode string // 100644, 100755 or 120000
+	oid  string // git's object id of the content, no filters applied
+}
+
 type builder struct {
-	lines []string
-	t     Tree
+	root   *safepath.Root
+	lines  []string
+	t      Tree
+	oidLen int // 40 or 64 when git object ids are computed as well; 0 otherwise
+	obs    map[string]observed
 }
 
 func (b *builder) finish() Tree {
@@ -136,58 +233,83 @@ func (b *builder) finish() Tree {
 
 func (b *builder) unreadable(rel string) {
 	b.t.Unreadable++
-	b.lines = append(b.lines, "unreadable  "+rel)
+	b.lines = append(b.lines, "unreadable  "+esc(rel))
 }
 
-func (b *builder) link(abs, rel string) {
-	target, err := os.Readlink(abs)
+func (b *builder) gitHash(size int) hash.Hash {
+	var h hash.Hash
+	switch b.oidLen {
+	case 40:
+		h = sha1.New() //nolint:gosec // see the import
+	case 64:
+		h = sha256.New()
+	default:
+		return nil
+	}
+	fmt.Fprintf(h, "blob %d\x00", size)
+	return h
+}
+
+func (b *builder) link(rel string) {
+	target, err := b.root.Readlink(rel)
 	if err != nil {
 		b.unreadable(rel)
 		return
 	}
 	b.t.Links++
-	b.lines = append(b.lines, "link  "+rel+" -> "+target)
+	b.lines = append(b.lines, "link  "+esc(rel)+" -> "+esc(target))
+	if gh := b.gitHash(len(target)); gh != nil {
+		io.WriteString(gh, target)
+		b.obs[rel] = observed{mode: "120000", oid: hex.EncodeToString(gh.Sum(nil))}
+	}
 }
 
-func (b *builder) file(abs, rel string) {
-	f, _, err := safepath.OpenRegular(abs)
+func (b *builder) file(rel string) {
+	f, fi, err := b.root.OpenRegular(rel)
 	if err != nil {
 		b.unreadable(rel)
 		return
 	}
 	defer f.Close()
 	h := sha256.New()
-	n, err := io.Copy(h, f)
-	if err != nil {
+	var w io.Writer = h
+	gh := b.gitHash(int(fi.Size()))
+	if gh != nil {
+		w = io.MultiWriter(h, gh)
+	}
+	n, err := io.Copy(w, f)
+	if err != nil || (gh != nil && n != fi.Size()) { // a file that changes under the read is not a reading
 		b.unreadable(rel)
 		return
 	}
+	mode, gitMode := "-", "100644"
+	if fi.Mode()&0o100 != 0 {
+		mode, gitMode = "x", "100755"
+	}
 	b.t.Files++
 	b.t.Bytes += n
-	b.lines = append(b.lines, hex.EncodeToString(h.Sum(nil))+"  "+rel)
+	b.lines = append(b.lines, hex.EncodeToString(h.Sum(nil))+"  "+mode+"  "+esc(rel))
+	if gh != nil {
+		b.obs[rel] = observed{mode: gitMode, oid: hex.EncodeToString(gh.Sum(nil))}
+	}
 }
 
 // scanDir digests every regular file under root. A symlink is never followed.
-func scanDir(root string) (Tree, error) {
-	var b builder
-	err := filepath.WalkDir(root, func(p string, d fs.DirEntry, err error) error {
-		rel, rerr := filepath.Rel(root, p)
-		if rerr != nil {
-			return rerr
-		}
+func scanDir(root *safepath.Root) (Tree, error) {
+	b := builder{root: root}
+	err := fs.WalkDir(root.FS(), ".", func(rel string, d fs.DirEntry, err error) error {
 		if rel == "." {
 			return err
 		}
-		rel = filepath.ToSlash(rel)
 		if err != nil {
 			b.unreadable(rel)
 			return nil
 		}
 		switch t := d.Type(); {
 		case t&fs.ModeSymlink != 0:
-			b.link(p, rel)
+			b.link(rel)
 		case t.IsRegular():
-			b.file(p, rel)
+			b.file(rel)
 		}
 		return nil
 	})
@@ -197,9 +319,9 @@ func scanDir(root string) (Tree, error) {
 	return b.finish(), nil
 }
 
-// digestList digests the named paths of a git target.
-func digestList(root string, rels []string) Tree {
-	var b builder
+// digestList digests the named paths of a git target. With oidLen set it also returns what each path was.
+func digestList(root *safepath.Root, rels []string, oidLen int) (Tree, map[string]observed) {
+	b := builder{root: root, oidLen: oidLen, obs: map[string]observed{}}
 	seen := map[string]bool{}
 	for _, rel := range rels {
 		rel = strings.TrimSuffix(rel, "/")
@@ -207,42 +329,54 @@ func digestList(root string, rels []string) Tree {
 			continue
 		}
 		seen[rel] = true
-		abs, err := safepath.Resolve(root, rel)
-		if err != nil {
+		if err := root.Check(rel); err != nil {
 			b.unreadable(rel)
 			continue
 		}
-		fi, err := os.Lstat(abs)
+		fi, err := root.Lstat(rel)
 		switch {
 		case err != nil:
 			b.unreadable(rel)
 		case fi.Mode()&os.ModeSymlink != 0:
-			b.link(abs, rel)
+			b.link(rel)
 		case fi.IsDir():
 			b.t.Submodules++
-			b.lines = append(b.lines, "submodule  "+rel)
+			b.lines = append(b.lines, "submodule  "+esc(rel))
+			b.obs[rel] = observed{dir: true}
 		case fi.Mode().IsRegular():
-			b.file(abs, rel)
+			b.file(rel)
 		default:
 			b.unreadable(rel)
 		}
 	}
-	return b.finish()
+	return b.finish(), b.obs
 }
 
 // ---- git ----
 
+// runGit runs one git call under a deadline. A call that overruns it is killed and the error names the call.
 func runGit(root string, opts Options, args ...string) ([]byte, error) {
 	bin := opts.GitBin
 	if bin == "" {
 		bin = "git"
 	}
+	timeout := opts.GitTimeout
+	if timeout <= 0 {
+		timeout = DefaultGitTimeout
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
 	full := append([]string{"-C", root, "-c", "core.fsmonitor=false", "--no-optional-locks"}, args...)
-	cmd := exec.Command(bin, full...)
+	cmd := exec.CommandContext(ctx, bin, full...)
+	cmd.WaitDelay = time.Second
 	cmd.Env = append(os.Environ(), "GIT_OPTIONAL_LOCKS=0", "GIT_TERMINAL_PROMPT=0")
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
-	if err := cmd.Run(); err != nil {
+	err := cmd.Run()
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("git %s timed out after %s (raise the deadline with --git-timeout)", strings.Join(args, " "), timeout)
+	}
+	if err != nil {
 		var ee *exec.ExitError
 		if errors.As(err, &ee) {
 			return out.Bytes(), fmt.Errorf("git %s: %w", args[0], err)
@@ -262,7 +396,38 @@ func nulList(b []byte) []string {
 	return out
 }
 
-func attestGit(root string, opts Options, a *Attestation) error {
+// gitEntry is one record of `git ls-files -s -z` or `git ls-tree -r -z`.
+type gitEntry struct {
+	mode, oid string
+	stage     string
+}
+
+// parseEntries reads records of the form `<mode> <a> <b>\t<path>`: for ls-files -s, a is the object id and b the
+// stage; for ls-tree, a is the type and b the object id.
+func parseEntries(b []byte, tree bool) (map[string]gitEntry, []string, error) {
+	m := map[string]gitEntry{}
+	var order []string
+	for _, rec := range nulList(b) {
+		meta, path, ok := strings.Cut(rec, "\t")
+		f := strings.Fields(meta)
+		if !ok || len(f) != 3 {
+			return nil, nil, fmt.Errorf("unexpected git output %q", meta)
+		}
+		e := gitEntry{mode: f[0], oid: f[1], stage: f[2]}
+		if tree {
+			e = gitEntry{mode: f[0], oid: f[2], stage: "0"}
+		}
+		if _, dup := m[path]; !dup {
+			order = append(order, path)
+		}
+		if old, dup := m[path]; !dup || e.stage < old.stage {
+			m[path] = e // an unmerged path keeps its lowest stage, which is never "0"
+		}
+	}
+	return m, order, nil
+}
+
+func attestGit(root string, r *safepath.Root, opts Options, a *Attestation) error {
 	g := &GitState{}
 	if out, err := runGit(root, opts, "rev-parse", "--verify", "-q", "HEAD"); err == nil {
 		g.Head = strings.TrimSpace(string(out))
@@ -272,30 +437,73 @@ func attestGit(root string, opts Options, a *Attestation) error {
 	} else {
 		g.Detached = true
 	}
-	st, err := runGit(root, opts, "status", "--porcelain=v1", "-z", "--untracked-files=normal")
+
+	idxOut, err := runGit(root, opts, "ls-files", "-s", "-z")
 	if err != nil {
 		return err
 	}
-	toks := nulList(st)
-	for i := 0; i < len(toks); i++ {
-		g.DirtyPaths++
-		if len(toks[i]) > 0 && (toks[i][0] == 'R' || toks[i][0] == 'C') {
-			i++ // a rename or copy carries its origin as the next record
+	index, tracked, err := parseEntries(idxOut, false)
+	if err != nil {
+		return err
+	}
+	headTree := map[string]gitEntry{}
+	if g.Head != "" {
+		out, err := runGit(root, opts, "ls-tree", "-r", "-z", g.Head)
+		if err != nil {
+			return err
+		}
+		if headTree, _, err = parseEntries(out, true); err != nil {
+			return err
 		}
 	}
+	oidLen := 0
+	for _, e := range index {
+		oidLen = len(e.oid)
+		break
+	}
+
+	var obs map[string]observed
+	a.Tree, obs = digestList(r, tracked, oidLen)
+
+	dirty := map[string]bool{}
+	for path, e := range index { // the index against HEAD, and an unmerged path
+		if h, ok := headTree[path]; e.stage != "0" || !ok || h.mode != e.mode || h.oid != e.oid {
+			dirty[path] = true
+		}
+	}
+	for path := range headTree {
+		if _, ok := index[path]; !ok {
+			dirty[path] = true
+		}
+	}
+	for path, e := range index { // the work tree against the index, on the raw bytes: no filter is applied
+		o, ok := obs[path]
+		switch {
+		case !ok:
+			dirty[path] = true
+		case e.mode == "160000":
+			dirty[path] = dirty[path] || !o.dir
+		case o.dir || o.mode != e.mode || o.oid != e.oid:
+			dirty[path] = true
+		}
+	}
+
+	collapsed, err := runGit(root, opts, "ls-files", "-z", "--others", "--exclude-standard", "--directory", "--no-empty-directory")
+	if err != nil {
+		return err
+	}
+	for _, p := range nulList(collapsed) {
+		dirty[p] = true
+	}
+	g.DirtyPaths = len(dirty)
 	g.Clean = g.DirtyPaths == 0
 	a.Git = g
 
-	tracked, err := runGit(root, opts, "ls-files", "-z")
-	if err != nil {
-		return err
-	}
-	a.Tree = digestList(root, nulList(tracked))
 	others, err := runGit(root, opts, "ls-files", "-z", "--others", "--exclude-standard")
 	if err != nil {
 		return err
 	}
-	u := digestList(root, nulList(others))
+	u, _ := digestList(r, nulList(others), 0)
 	a.Untracked = &u
 	return nil
 }

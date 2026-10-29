@@ -45,13 +45,16 @@ func TestProbeP2FifoSwappedInDoesNotHangTheRead(t *testing.T) {
 	done := make(chan int)
 	go func() {
 		n := 0
+		root, err := safepath.OpenRoot(r)
+		if err != nil {
+			t.Error(err)
+			done <- 0
+			return
+		}
+		defer root.Close()
 		deadline := time.Now().Add(3 * time.Second)
 		for time.Now().Before(deadline) {
-			abs, err := safepath.Resolve(r, "f")
-			if err != nil {
-				continue
-			}
-			if fh, _, err := safepath.OpenRegular(abs); err == nil {
+			if fh, _, err := root.OpenRegular("f"); err == nil {
 				fh.Close()
 				n++
 			}

@@ -1,5 +1,8 @@
-// Package manifest records every file a scan read: relative path, size, mtime and SHA-256 at read time, so a
-// citation stays verifiable after the target moves.
+// Package manifest records every file an analyser read and cites: relative path, size, mtime and SHA-256 at read
+// time, so a citation stays verifiable after the target moves.
+//
+// The attestation's own reads (the two digest passes) are not recorded here: the tree digest covers them. The manifest
+// of a scan that ran no analyser is therefore empty.
 package manifest
 
 import (
@@ -76,11 +79,12 @@ func clean(rel string) string {
 }
 
 func (m *Manifest) read(rel string, maxBytes int64, keep bool) ([]byte, Entry, error) {
-	abs, err := safepath.Resolve(m.root, rel)
+	root, err := safepath.OpenRoot(m.root)
 	if err != nil {
 		return nil, Entry{}, err
 	}
-	f, fi, err := safepath.OpenRegular(abs)
+	defer root.Close()
+	f, fi, err := root.OpenRegular(rel)
 	if err != nil {
 		return nil, Entry{}, fmt.Errorf("%s: %w", rel, err)
 	}
