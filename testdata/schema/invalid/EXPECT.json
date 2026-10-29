@@ -4,6 +4,16 @@
     "mutated": "/repos/0/absent/0/section",
     "refused_at": "/repos/0/absent/0/section"
   },
+  "attestation-git-missing.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/git",
+    "refused_at": "/repos/0/attestation/git"
+  },
+  "attestation-mode-workspace.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/mode",
+    "refused_at": "/repos/0/attestation/mode"
+  },
   "command-executed-missing.json": {
     "base": "valid/two-repos.json",
     "mutated": "/repos/0/commands/0/executed",
@@ -59,10 +69,15 @@
     "mutated": "/workspace_profile/repos/0/vcs",
     "refused_at": "/workspace_profile/repos/0/vcs"
   },
-  "readonly-proof-equal-string.json": {
+  "read-only-proof-before-63-hex.json": {
     "base": "valid/two-repos.json",
-    "mutated": "/scan/readonly_proof/equal",
-    "refused_at": "/scan/readonly_proof/equal"
+    "mutated": "/repos/0/attestation/read_only_proof/before",
+    "refused_at": "/repos/0/attestation/read_only_proof/before"
+  },
+  "read-only-proof-status-same.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/read_only_proof/status",
+    "refused_at": "/repos/0/attestation/read_only_proof/status"
   },
   "repo-section-missing.json": {
     "base": "valid/two-repos.json",
@@ -78,6 +93,11 @@
     "base": "valid/two-repos.json",
     "mutated": "/scan/started",
     "refused_at": "/scan/started"
+  },
+  "scan-target-mode-workspace.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/scan/targets/0/mode",
+    "refused_at": "/scan/targets/0/mode"
   },
   "schema-version-v2.json": {
     "base": "valid/two-repos.json",
@@ -138,6 +158,11 @@
     "base": "valid/two-repos.json",
     "mutated": "/tool/commit",
     "refused_at": "/tool/commit"
+  },
+  "tree-digest-uppercase.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/tree/digest",
+    "refused_at": "/repos/0/attestation/tree/digest"
   },
   "unknown-top-level-field.json": {
     "base": "valid/two-repos.json",

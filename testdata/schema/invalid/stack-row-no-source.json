@@ -16,9 +16,14 @@
         }
       ],
       "attestation": {
-        "branch": "main",
-        "dirty": false,
-        "head": "4d2d0af",
+        "git": {
+          "branch": "main",
+          "clean": true,
+          "detached": false,
+          "dirty_paths": [],
+          "head": "4d2d0af"
+        },
+        "mode": "git",
         "read_manifest": {
           "bytes_read": 460,
           "entries": [
@@ -34,6 +39,28 @@
             }
           ],
           "files_read": 2
+        },
+        "read_only_proof": {
+          "after": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "status": "EQUAL"
+        },
+        "root": "api",
+        "tree": {
+          "bytes": 20480,
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "files": 14,
+          "links": 0,
+          "submodules": 0,
+          "unreadable": 0
+        },
+        "untracked": {
+          "bytes": 12,
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "files": 1,
+          "links": 0,
+          "submodules": 0,
+          "unreadable": 0
         }
       },
       "ci": [
@@ -243,13 +270,34 @@
         }
       ],
       "attestation": {
-        "branch": "develop",
-        "dirty": true,
-        "head": "9f8e7d6",
+        "git": {
+          "branch": "",
+          "clean": false,
+          "detached": true,
+          "dirty_paths": [
+            "src/app.ts"
+          ],
+          "head": "9f8e7d6"
+        },
+        "mode": "git",
         "read_manifest": {
           "bytes_read": 0,
           "entries": [],
           "files_read": 0
+        },
+        "read_only_proof": {
+          "after": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "before": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "status": "NOT-EQUAL"
+        },
+        "root": "web",
+        "tree": {
+          "bytes": 51200,
+          "digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "files": 31,
+          "links": 1,
+          "submodules": 0,
+          "unreadable": 2
         }
       },
       "ci": [],
@@ -339,16 +387,16 @@
   ],
   "scan": {
     "finished": "2026-10-28T10:00:05+02:00",
-    "readonly_proof": {
-      "after": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "before": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "equal": true
-    },
+    "read_only_proof_all_equal": false,
     "started": "2026-10-28T10:00:00Z",
     "targets": [
       {
-        "mode": "workspace",
-        "path": "workspace"
+        "mode": "git",
+        "path": "api"
+      },
+      {
+        "mode": "git",
+        "path": "web"
       }
     ]
   },

@@ -44,17 +44,26 @@ func (e *Error) Error() string {
 	return b.String()
 }
 
-// Validate refuses a document that is not a valid discover/v1 report. It reads JSON, enforces the schema's rules
-// (required fields, no unknown fields outside extensions, enums, constants, patterns, counts) and returns *Error.
+// Validate is the writer's check: it refuses a document that is not a valid discover/v1 report. It reads JSON,
+// enforces the schema's rules (required fields, no unknown field anywhere, enums, constants, patterns, counts)
+// and returns *Error. It is what discover runs before it writes a report.
 func Validate(data []byte) error {
 	var r Report
-	return validate(data, &r)
+	return validate(data, &r, true)
 }
 
-// ValidateProfile does the same for a bare workspace profile (testdata/schema/profile-v1.json).
+// ValidateForRead is the reader's check, for a report some other v1 writer may have produced. It enforces every
+// rule Validate does except one: an unknown field is ignored everywhere but inside a finding, which stays closed
+// so that no later file can carry a secret's value in a field this reader would pass through.
+func ValidateForRead(data []byte) error {
+	var r Report
+	return validate(data, &r, false)
+}
+
+// ValidateProfile does the same as Validate for a bare workspace profile (testdata/schema/profile-v1.json).
 func ValidateProfile(data []byte) error {
 	var p WorkspaceProfile
-	return validate(data, &p)
+	return validate(data, &p, true)
 }
 
 // Marshal validates the report and returns its JSON, indented. A nil slice is written as an empty array.
@@ -70,7 +79,7 @@ func Marshal(r *Report) ([]byte, error) {
 	return append(out, '\n'), nil
 }
 
-func validate(data []byte, dst any) error {
+func validate(data []byte, dst any, strict bool) error {
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.UseNumber()
 	var doc any
@@ -81,7 +90,7 @@ func validate(data []byte, dst any) error {
 		return &Error{Problems: []Problem{{Message: "not valid JSON: data after the document"}}}
 	}
 	var problems []Problem
-	walk(doc, reflect.TypeOf(dst).Elem(), "", "", &problems)
+	walk(doc, reflect.TypeOf(dst).Elem(), "", "", strict, &problems)
 	if len(problems) > 0 {
 		return &Error{Problems: problems}
 	}
@@ -132,8 +141,9 @@ func kindOf(v any) string {
 }
 
 // walk checks the decoded document v against Go type t: shape, required fields, unknown fields and value rules.
-// tag is the struct tag of the field that holds v; slices hand it down to their elements.
-func walk(v any, t reflect.Type, tag reflect.StructTag, path string, out *[]Problem) {
+// tag is the struct tag of the field that holds v; slices hand it down to their elements. closed says whether an
+// unknown field is refused; it is always true for a writer, and for a reader once inside a finding.
+func walk(v any, t reflect.Type, tag reflect.StructTag, path string, closed bool, out *[]Problem) {
 	add := func(msg string, a ...any) { *out = append(*out, Problem{Path: path, Message: fmt.Sprintf(msg, a...)}) }
 	if t.Kind() == reflect.Ptr {
 		if v == nil {
@@ -148,6 +158,7 @@ func walk(v any, t reflect.Type, tag reflect.StructTag, path string, out *[]Prob
 			add("expected an object, got %s", kindOf(v))
 			return
 		}
+		closed = closed || t == reflect.TypeOf(Finding{})
 		known := map[string]bool{}
 		for _, f := range fieldsOf(t) {
 			known[f.name] = true
@@ -159,7 +170,14 @@ func walk(v any, t reflect.Type, tag reflect.StructTag, path string, out *[]Prob
 				}
 				continue
 			}
-			walk(fv, sf.Type, sf.Tag, path+"/"+f.name, out)
+			if fv == nil && f.omitempty && sf.Type.Kind() == reflect.Ptr {
+				*out = append(*out, Problem{Path: path + "/" + f.name, Message: f.name + " is optional but must not be null; leave it out"})
+				continue
+			}
+			walk(fv, sf.Type, sf.Tag, path+"/"+f.name, closed, out)
+		}
+		if !closed {
+			return
 		}
 		keys := make([]string, 0, len(m))
 		for k := range m {
@@ -168,7 +186,7 @@ func walk(v any, t reflect.Type, tag reflect.StructTag, path string, out *[]Prob
 		sort.Strings(keys)
 		for _, k := range keys {
 			if !known[k] {
-				*out = append(*out, Problem{Path: path + "/" + k, Message: "unknown field " + k + "; v1 readers accept unknown fields only inside extensions"})
+				*out = append(*out, Problem{Path: path + "/" + k, Message: "unknown field " + k + "; a writer never writes it, and a reader refuses it inside a finding"})
 			}
 		}
 	case reflect.Map:
@@ -188,7 +206,7 @@ func walk(v any, t reflect.Type, tag reflect.StructTag, path string, out *[]Prob
 			add("allows at most %d item(s), has %d", n, len(a))
 		}
 		for i, e := range a {
-			walk(e, t.Elem(), tag, path+"/"+strconv.Itoa(i), out)
+			walk(e, t.Elem(), tag, path+"/"+strconv.Itoa(i), closed, out)
 		}
 	case reflect.String:
 		s, ok := v.(string)
@@ -296,6 +314,15 @@ func check(v reflect.Value, path string, out *[]Problem) {
 				add("a secret finding must not carry text; only its location and secret_type")
 			case x.Kind != "secret" && x.SecretType != "":
 				add("secret_type is only allowed on a finding of kind secret")
+			}
+		case Attestation:
+			switch {
+			case x.Mode == "git" && x.Git == nil:
+				*out = append(*out, Problem{Path: path + "/git", Message: "mode is git, so git is required"})
+			case x.Mode != "git" && x.Git != nil:
+				*out = append(*out, Problem{Path: path + "/git", Message: "git is only allowed when mode is git"})
+			case x.Mode != "git" && x.Untracked != nil:
+				*out = append(*out, Problem{Path: path + "/untracked", Message: "untracked is only allowed when mode is git"})
 			}
 		case Repo:
 			n := 0

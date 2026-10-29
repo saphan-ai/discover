@@ -10,16 +10,16 @@
   "repos": [],
   "scan": {
     "finished": "2026-10-28T10:00:05+02:00",
-    "readonly_proof": {
-      "after": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "before": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
-      "equal": true
-    },
+    "read_only_proof_all_equal": false,
     "started": "2026-10-28T10:00:00Z",
     "targets": [
       {
-        "mode": "workspace",
-        "path": "workspace"
+        "mode": "git",
+        "path": "api"
+      },
+      {
+        "mode": "git",
+        "path": "web"
       }
     ]
   },

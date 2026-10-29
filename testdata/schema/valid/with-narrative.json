@@ -4,16 +4,18 @@
   "scan": {
     "started": "2026-10-28T11:00:00Z",
     "finished": "2026-10-28T11:02:00Z",
-    "targets": [{ "path": ".", "mode": "repository" }],
-    "readonly_proof": { "before": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "after": "sha256:4444444444444444444444444444444444444444444444444444444444444444", "equal": true }
+    "targets": [{ "path": ".", "mode": "git" }],
+    "read_only_proof_all_equal": true
   },
   "repos": [
     {
       "name": "tool",
       "attestation": {
-        "head": "1a2b3c4",
-        "branch": "main",
-        "dirty": false,
+        "root": "/home/dev/tool",
+        "mode": "git",
+        "git": { "branch": "main", "detached": false, "head": "1a2b3c4", "clean": true, "dirty_paths": [] },
+        "tree": { "files": 3, "bytes": 1900, "links": 0, "submodules": 0, "unreadable": 0, "digest": "4444444444444444444444444444444444444444444444444444444444444444" },
+        "read_only_proof": { "status": "EQUAL", "before": "4444444444444444444444444444444444444444444444444444444444444444", "after": "4444444444444444444444444444444444444444444444444444444444444444" },
         "read_manifest": {
           "entries": [{ "path": "README.md", "sha256": "5555555555555555555555555555555555555555555555555555555555555555", "bytes": 800 }],
           "files_read": 1,

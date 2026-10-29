@@ -371,6 +371,9 @@ func goPaths(t reflect.Type, prefix string, out *[]string) {
 		}
 		path := prefix + parts[0]
 		ft := f.Type
+		if ft.Kind() == reflect.Ptr && req == "optional" {
+			ft = ft.Elem() // an optional pointer is absent, never null: the schema types it as the pointee
+		}
 		typ := goType(ft)
 		*out = append(*out, fmt.Sprintf("%s %s %s", path, typ, req))
 		goDescend(ft, path, out)
@@ -378,6 +381,9 @@ func goPaths(t reflect.Type, prefix string, out *[]string) {
 }
 
 func goDescend(ft reflect.Type, path string, out *[]string) {
+	if ft.Kind() == reflect.Ptr {
+		ft = ft.Elem()
+	}
 	switch ft.Kind() {
 	case reflect.Struct:
 		goPaths(ft, path+".", out)

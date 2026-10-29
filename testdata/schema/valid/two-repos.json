@@ -4,16 +4,19 @@
   "scan": {
     "started": "2026-10-28T10:00:00Z",
     "finished": "2026-10-28T10:00:05+02:00",
-    "targets": [{ "path": "workspace", "mode": "workspace" }],
-    "readonly_proof": { "before": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "after": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "equal": true }
+    "targets": [{ "path": "api", "mode": "git" }, { "path": "web", "mode": "git" }],
+    "read_only_proof_all_equal": false
   },
   "repos": [
     {
       "name": "api",
       "attestation": {
-        "head": "4d2d0af",
-        "branch": "main",
-        "dirty": false,
+        "root": "api",
+        "mode": "git",
+        "git": { "branch": "main", "detached": false, "head": "4d2d0af", "clean": true, "dirty_paths": [] },
+        "tree": { "files": 14, "bytes": 20480, "links": 0, "submodules": 0, "unreadable": 0, "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+        "untracked": { "files": 1, "bytes": 12, "links": 0, "submodules": 0, "unreadable": 0, "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+        "read_only_proof": { "status": "EQUAL", "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "after": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
         "read_manifest": {
           "entries": [
             { "path": "go.mod", "sha256": "2222222222222222222222222222222222222222222222222222222222222222", "bytes": 120 },
@@ -69,7 +72,14 @@
     },
     {
       "name": "web",
-      "attestation": { "head": "9f8e7d6", "branch": "develop", "dirty": true, "read_manifest": { "entries": [], "files_read": 0, "bytes_read": 0 } },
+      "attestation": {
+        "root": "web",
+        "mode": "git",
+        "git": { "branch": "", "detached": true, "head": "9f8e7d6", "clean": false, "dirty_paths": ["src/app.ts"] },
+        "tree": { "files": 31, "bytes": 51200, "links": 1, "submodules": 0, "unreadable": 2, "digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd" },
+        "read_only_proof": { "status": "NOT-EQUAL", "before": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "after": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" },
+        "read_manifest": { "entries": [], "files_read": 0, "bytes_read": 0 }
+      },
       "inventory": { "top_level": [{ "name": "package.json", "kind": "file" }], "languages": [{ "name": "TypeScript", "files": 30 }], "files_total": 31, "bytes_total": 51200 },
       "stack": [{ "layer": "language", "technology": "TypeScript", "version": "5.4.0", "source": { "file": "package.json", "key": "devDependencies.typescript" } }],
       "structure": { "patterns": [], "naming": [], "architecture": [] },

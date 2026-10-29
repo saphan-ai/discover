@@ -36,9 +36,14 @@
         }
       ],
       "attestation": {
-        "branch": "main",
-        "dirty": false,
-        "head": "1a2b3c4",
+        "git": {
+          "branch": "main",
+          "clean": true,
+          "detached": false,
+          "dirty_paths": [],
+          "head": "1a2b3c4"
+        },
+        "mode": "git",
         "read_manifest": {
           "bytes_read": 800,
           "entries": [
@@ -49,6 +54,20 @@
             }
           ],
           "files_read": 1
+        },
+        "read_only_proof": {
+          "after": "4444444444444444444444444444444444444444444444444444444444444444",
+          "before": "4444444444444444444444444444444444444444444444444444444444444444",
+          "status": "EQUAL"
+        },
+        "root": "/home/dev/tool",
+        "tree": {
+          "bytes": 1900,
+          "digest": "4444444444444444444444444444444444444444444444444444444444444444",
+          "files": 3,
+          "links": 0,
+          "submodules": 0,
+          "unreadable": 0
         }
       },
       "ci": [],
@@ -106,15 +125,11 @@
   ],
   "scan": {
     "finished": "2026-10-28T11:02:00Z",
-    "readonly_proof": {
-      "after": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-      "before": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
-      "equal": true
-    },
+    "read_only_proof_all_equal": true,
     "started": "2026-10-28T11:00:00Z",
     "targets": [
       {
-        "mode": "repository",
+        "mode": "git",
         "path": "."
       }
     ]

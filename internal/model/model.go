@@ -15,7 +15,7 @@ type Report struct {
 	Scan             Scan             `json:"scan"`
 	Repos            []Repo           `json:"repos" minItems:"1"`
 	WorkspaceProfile WorkspaceProfile `json:"workspace_profile"`
-	// Extensions is reserved for later editions. Any content; v1 readers ignore it.
+	// Extensions is open to any content. A v1 reader ignores what it does not know, here as everywhere but in a finding.
 	Extensions map[string]any `json:"extensions,omitempty"`
 }
 
@@ -28,23 +28,46 @@ type Tool struct {
 
 // Scan describes one run: when, over which targets, and the proof that nothing was written.
 type Scan struct {
-	Started       string        `json:"started" format:"date-time"`
-	Finished      string        `json:"finished" format:"date-time"`
-	Targets       []Target      `json:"targets" minItems:"1"`
-	ReadonlyProof ReadonlyProof `json:"readonly_proof"`
+	Started  string   `json:"started" format:"date-time"`
+	Finished string   `json:"finished" format:"date-time"`
+	Targets  []Target `json:"targets" minItems:"1"`
+	// ReadOnlyProofAllEqual summarises the per-repository proofs; they are the record.
+	ReadOnlyProofAllEqual bool `json:"read_only_proof_all_equal"`
 }
 
-// Target is one path given to the scan. Mode says whether it was one repository or a directory of them.
+// Target is one path given to the scan. Mode says whether it is a git working tree or a plain directory.
 type Target struct {
 	Path string `json:"path" minLen:"1"`
-	Mode string `json:"mode" enum:"repository|workspace"`
+	Mode string `json:"mode" enum:"git|dir"`
 }
 
-// ReadonlyProof compares the state of the scanned tree before and after the scan.
-type ReadonlyProof struct {
-	Before string `json:"before" minLen:"1"`
-	After  string `json:"after" minLen:"1"`
-	Equal  bool   `json:"equal"`
+// Digest is a SHA-256 in 64 lowercase hex digits.
+type Digest = string
+
+// Tree measures one tree: what it holds and one digest of it.
+type Tree struct {
+	Files      int    `json:"files" min:"0"`
+	Bytes      int    `json:"bytes" min:"0"`
+	Links      int    `json:"links" min:"0"`
+	Submodules int    `json:"submodules" min:"0"`
+	Unreadable int    `json:"unreadable" min:"0"`
+	Digest     Digest `json:"digest" pattern:"^[0-9a-f]{64}$"`
+}
+
+// GitState is what the scan knew of a git working tree. Branch and Head are empty when there is none.
+type GitState struct {
+	Branch     string   `json:"branch"`
+	Detached   bool     `json:"detached"`
+	Head       string   `json:"head"`
+	Clean      bool     `json:"clean"`
+	DirtyPaths []string `json:"dirty_paths" minLen:"1" pattern:"^[^/\\\\]"`
+}
+
+// ReadOnlyProof compares the tree digest before and after the scan of one repository.
+type ReadOnlyProof struct {
+	Status string `json:"status" enum:"EQUAL|NOT-EQUAL"`
+	Before Digest `json:"before" pattern:"^[0-9a-f]{64}$"`
+	After  Digest `json:"after" pattern:"^[0-9a-f]{64}$"`
 }
 
 // Source says where a claim comes from: a file, and a key or a line in it. At least one of Key and Line is set.
@@ -75,12 +98,17 @@ type Repo struct {
 	Absent          []Absent         `json:"absent"`
 }
 
-// Attestation echoes what the scan knew about the repository and what it read.
+// Attestation echoes what the scan knew about the repository, the proof that it was left unchanged, and what it
+// read. Root is the base name of the scanned directory, or its absolute path when the user asked to record it.
+// Git is present exactly when Mode is "git"; Untracked only then, and optionally.
 type Attestation struct {
-	Head         *string      `json:"head"`
-	Branch       *string      `json:"branch"`
-	Dirty        bool         `json:"dirty"`
-	ReadManifest ReadManifest `json:"read_manifest"`
+	Root          string        `json:"root" minLen:"1"`
+	Mode          string        `json:"mode" enum:"git|dir"`
+	Git           *GitState     `json:"git,omitempty"`
+	Tree          Tree          `json:"tree"`
+	Untracked     *Tree         `json:"untracked,omitempty"`
+	ReadOnlyProof ReadOnlyProof `json:"read_only_proof"`
+	ReadManifest  ReadManifest  `json:"read_manifest"`
 }
 
 // ReadManifest lists every file the scan read.
