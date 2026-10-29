@@ -60,7 +60,7 @@ type GitState struct {
 	Detached   bool     `json:"detached"`
 	Head       string   `json:"head"`
 	Clean      bool     `json:"clean"`
-	DirtyPaths []string `json:"dirty_paths" minLen:"1" pattern:"^[^/\\\\]"`
+	DirtyPaths []string `json:"dirty_paths" minLen:"1" pattern:"^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$"`
 }
 
 // ReadOnlyProof compares the tree digest before and after the scan of one repository.
@@ -73,7 +73,7 @@ type ReadOnlyProof struct {
 // Source says where a claim comes from: a file, and a key or a line in it. At least one of Key and Line is set.
 // File is relative to the repository root.
 type Source struct {
-	File string `json:"file" minLen:"1" pattern:"^[^/\\\\]"`
+	File string `json:"file" minLen:"1" pattern:"^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$"`
 	Key  string `json:"key,omitempty" minLen:"1"`
 	Line int    `json:"line,omitempty" min:"1"`
 }
@@ -120,7 +120,7 @@ type ReadManifest struct {
 
 // ManifestEntry is one file read, with the digest of the bytes read.
 type ManifestEntry struct {
-	Path   string `json:"path" minLen:"1" pattern:"^[^/\\\\]"`
+	Path   string `json:"path" minLen:"1" pattern:"^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$"`
 	SHA256 string `json:"sha256" pattern:"^[0-9a-f]{64}$"`
 	Bytes  int    `json:"bytes" min:"0"`
 }
@@ -208,7 +208,7 @@ type Finding struct {
 	Severity   string `json:"severity" enum:"info|low|medium|high"`
 	Source     Source `json:"source"`
 	Text       string `json:"text,omitempty" minLen:"1"`
-	SecretType string `json:"secret_type,omitempty" minLen:"1"`
+	SecretType string `json:"secret_type,omitempty" minLen:"1" pattern:"^[a-z0-9][a-z0-9-]{0,63}$"`
 }
 
 // UIItem is a row of section 8: a user interface string or screen, inventoried only.
@@ -258,11 +258,11 @@ type WorkspaceProfile struct {
 // ProfileRepo is one repository in the workspace profile. RelativePath is relative to the scan root.
 type ProfileRepo struct {
 	Name            string          `json:"name" minLen:"1"`
-	RelativePath    string          `json:"relative_path" pattern:"^[^/\\\\]"`
+	RelativePath    string          `json:"relative_path" pattern:"^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$"`
 	VCS             string          `json:"vcs" enum:"git|none"`
 	Languages       []string        `json:"languages" minLen:"1"`
 	Commands        ProfileCommands `json:"commands"`
-	ConventionFiles []string        `json:"convention_files" pattern:"^[^/\\\\]"`
+	ConventionFiles []string        `json:"convention_files" pattern:"^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$"`
 	CI              []CI            `json:"ci"`
 }
 

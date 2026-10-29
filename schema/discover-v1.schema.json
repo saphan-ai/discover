@@ -68,7 +68,7 @@
         "detached": { "type": "boolean" },
         "head": { "type": "string" },
         "clean": { "type": "boolean" },
-        "dirty_paths": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "^[^/\\\\]" } }
+        "dirty_paths": { "type": "array", "items": { "type": "string", "minLength": 1, "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$" } }
       }
     },
     "read_only_proof": {
@@ -86,7 +86,7 @@
       "additionalProperties": false,
       "required": ["file"],
       "properties": {
-        "file": { "type": "string", "minLength": 1, "pattern": "^[^/\\\\]" },
+        "file": { "type": "string", "minLength": 1, "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$" },
         "key": { "type": "string", "minLength": 1 },
         "line": { "type": "integer", "minimum": 1 }
       },
@@ -156,7 +156,7 @@
       "additionalProperties": false,
       "required": ["path", "sha256", "bytes"],
       "properties": {
-        "path": { "type": "string", "minLength": 1, "pattern": "^[^/\\\\]" },
+        "path": { "type": "string", "minLength": 1, "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$" },
         "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
         "bytes": { "type": "integer", "minimum": 0 }
       }
@@ -283,10 +283,14 @@
         "severity": { "enum": ["info", "low", "medium", "high"] },
         "source": { "$ref": "#/$defs/source" },
         "text": { "type": "string", "minLength": 1 },
-        "secret_type": { "type": "string", "minLength": 1 }
+        "secret_type": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]{0,63}$" }
       },
       "if": { "properties": { "kind": { "const": "secret" } }, "required": ["kind"] },
-      "then": { "required": ["secret_type"], "not": { "required": ["text"] } },
+      "then": {
+        "required": ["secret_type"],
+        "not": { "required": ["text"] },
+        "properties": { "source": { "properties": { "key": { "pattern": "^[A-Za-z_][A-Za-z0-9_.\\-\\[\\]]{0,127}$" } } } }
+      },
       "else": { "not": { "required": ["secret_type"] } }
     },
     "ui_item": {
@@ -360,11 +364,11 @@
       "required": ["name", "relative_path", "vcs", "languages", "commands", "convention_files", "ci"],
       "properties": {
         "name": { "type": "string", "minLength": 1 },
-        "relative_path": { "type": "string", "pattern": "^[^/\\\\]" },
+        "relative_path": { "type": "string", "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$" },
         "vcs": { "enum": ["git", "none"] },
         "languages": { "type": "array", "items": { "type": "string", "minLength": 1 } },
         "commands": { "$ref": "#/$defs/profile_commands" },
-        "convention_files": { "type": "array", "items": { "type": "string", "pattern": "^[^/\\\\]" } },
+        "convention_files": { "type": "array", "items": { "type": "string", "pattern": "^(?:[^/\\\\]|[^/\\\\A-Za-z.][^/\\\\]+|[A-Za-z][^/\\\\:][^/\\\\]*|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+)(?:[/\\\\](?:[^/\\\\]|[^/\\\\.][^/\\\\]+|\\.[^/\\\\.][^/\\\\]*|\\.\\.[^/\\\\]+))*$" } },
         "ci": { "type": "array", "items": { "$ref": "#/$defs/ci" } }
       }
     },

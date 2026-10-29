@@ -16,6 +16,12 @@ import (
 // maxTodo caps the TODO/FIXME findings of one repository.
 const maxTodo = 30
 
+// secretKeyRule is what source.key may be inside a finding of kind secret: a key path, never a value. It is the
+// same pattern as the one in the finding's `then` branch of the schema.
+const secretKeyRule = `^[A-Za-z_][A-Za-z0-9_.\-\[\]]{0,127}$`
+
+var secretKeyPattern = regexp.MustCompile(secretKeyRule)
+
 // Problem is one refusal: the JSON pointer of the field or object that broke a rule, and what rule.
 type Problem struct {
 	Path    string
@@ -385,6 +391,9 @@ func check(v reflect.Value, path string, out *[]Problem) {
 				add("a secret finding must not carry text; only its location and secret_type")
 			case x.Kind != "secret" && x.SecretType != "":
 				add("secret_type is only allowed on a finding of kind secret")
+			}
+			if x.Kind == "secret" && x.Source.Key != "" && !secretKeyPattern.MatchString(x.Source.Key) {
+				*out = append(*out, Problem{Path: path + "/source/key", Message: "inside a secret finding, key must be a key path matching " + secretKeyRule + ", never a value"})
 			}
 		case Attestation:
 			switch {

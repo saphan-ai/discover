@@ -164,6 +164,41 @@
     "mutated": "/repos/0/attestation/tree/digest",
     "refused_at": "/repos/0/attestation/tree/digest"
   },
+  "secret-type-has-value.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/0/secret_type",
+    "refused_at": "/repos/0/findings/0/secret_type"
+  },
+  "secret-source-key-has-value.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/findings/0/source/key",
+    "refused_at": "/repos/0/findings/0/source/key"
+  },
+  "profile-relative-path-parent-climb.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/workspace_profile/repos/0/relative_path",
+    "refused_at": "/workspace_profile/repos/0/relative_path"
+  },
+  "profile-convention-file-drive-letter.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/workspace_profile/repos/0/convention_files/0",
+    "refused_at": "/workspace_profile/repos/0/convention_files/0"
+  },
+  "source-file-parent-segment.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/stack/0/source/file",
+    "refused_at": "/repos/0/stack/0/source/file"
+  },
+  "git-dirty-path-parent-climb.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/1/attestation/git/dirty_paths/0",
+    "refused_at": "/repos/1/attestation/git/dirty_paths/0"
+  },
+  "manifest-path-drive-letter.json": {
+    "base": "valid/two-repos.json",
+    "mutated": "/repos/0/attestation/read_manifest/entries/0/path",
+    "refused_at": "/repos/0/attestation/read_manifest/entries/0/path"
+  },
   "unknown-top-level-field.json": {
     "base": "valid/two-repos.json",
     "mutated": "/cross_repo_summary",
