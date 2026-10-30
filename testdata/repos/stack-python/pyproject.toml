@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stackpy"
+requires-python = ">=3.10"
+dependencies = [
+  "requests>=2.31,<3",
+  "flask==3.0.3",  # pinned
+  "rich",
+  "numpy[extra] ~= 1.26 ; python_version >= '3.9'",
+]
+
+[project.optional-dependencies]
+docs = ["sphinx>=7"]
+
+[dependency-groups]
+dev = ["pytest==8.2.0", { include-group = "docs" }]

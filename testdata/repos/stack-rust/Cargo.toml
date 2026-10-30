@@ -1,0 +1,19 @@
+[package]
+name = "stackrs"
+edition = "2021"
+rust-version = "1.75"
+
+[dependencies]
+serde = { version = "1.0.197", features = ["derive"] }
+tokio = "1"
+local = { path = "../local" }
+shared = { workspace = true }
+
+[dependencies.regex]
+version = "1.10"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[build-dependencies]
+cc = "=1.0.90"

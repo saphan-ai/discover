@@ -1,0 +1,13 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '3.2.4'
+}
+
+sourceCompatibility = '17'
+
+dependencies {
+    implementation 'com.google.guava:guava:33.0.0-jre'
+    implementation "org.slf4j:slf4j-api"
+    testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+    // implementation 'commented:out:1.0'
+}

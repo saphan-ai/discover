@@ -1,0 +1,8 @@
+# runtime pins
+requests==2.31.0
+urllib3>=1.26,<3
+pandas
+-r other.txt
+-e git+https://example.invalid/x.git#egg=x
+flask==3.0.3 \
+    --hash=sha256:aaaa

@@ -1,0 +1,8 @@
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^5.0"
+celery = { version = "5.3.6", extras = ["redis"] }
+local-lib = { path = "../lib" }
+
+[tool.poetry.group.dev.dependencies]
+black = "24.4.2"
