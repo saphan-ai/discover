@@ -186,10 +186,18 @@ target for a repository. Git older than 2.45 does not honour the no-fetch switch
 instead of reading without the guarantee. Several targets are written to `<out>/<label>`; a scan whose `<out>/<label>`
 is a target or lies inside one is refused before anything is read.
 
-`discover` never writes through a symbolic link. If a per-target output directory, or `READ_MANIFEST.json` or
-`ATTESTATION.json` in it, already exists and is a link (or is not a directory, or not a regular file), the scan is
-refused by name before anything is read, wherever the link points; remove it and run again. The two files are written
-through a handle opened on the output directory, so a link that appears later cannot take a write out of it.
+`discover` never writes into an existing file and never writes through a link. With several targets, if a per-target
+output directory already exists and is a link (or is not a directory), the scan is refused by name before anything is
+read, wherever the link points. If `READ_MANIFEST.json` or `ATTESTATION.json` already exists and is a link, is not a
+regular file, or is a regular file with more than one name (a hard link, where the host reports link counts), the scan
+is refused by name before anything is read; remove it and run again. With one target, an `--out` that is a link is
+followed to its real directory, which must lie outside every target; if it does not, the scan is refused.
+
+The output directory is opened once, judged as opened, and written through that same handle. Each output file is
+written to a fresh name in that directory (created with `O_EXCL`) and renamed into place, so no existing file is ever
+opened for writing. A hard link, a link or a FIFO that appears at an output name after the checks is replaced by the
+new file; the file it pointed at is left as it was. A directory that appears at an output name cannot be replaced by a
+file: the scan stops with a sentence naming the file and exit 2, and leaves no temporary file behind.
 
 One check runs only on some hosts: the test that an `--out` spelled with another letter case is refused needs a
 case-insensitive file system (the macOS default) and is skipped elsewhere, so CI on Linux does not run it. The
