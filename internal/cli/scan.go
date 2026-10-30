@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 
 	"github.com/saphan-ai/discover/internal/attest"
@@ -152,9 +153,37 @@ func scan(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
+	// The output directories are made, and held open, before any target is read. Nothing below resolves them by path
+	// again to create or write: a link that appears later cannot move the scan's writes into a target.
+	outs := make([]outputDir, len(targets))
+	defer func() {
+		for _, o := range outs {
+			if o.root != nil {
+				o.root.Close()
+			}
+		}
+	}()
+	var created []string
+	for i, t := range targets {
+		o, made, err := openOutput(dirs[i], outAbs, targets)
+		created = append(created, made...)
+		if err != nil {
+			where := fmt.Sprintf("--out %q", filepath.Base(*out))
+			if dirs[i] != outAbs {
+				rel, _ := filepath.Rel(outAbs, dirs[i])
+				where = fmt.Sprintf("%q under --out %q", rel, filepath.Base(*out))
+			}
+			fmt.Fprintf(stderr, "discover scan: refused: the output directory of target %q (%s) %s; nothing was read or written; %s. "+
+				"Choose another --out.\n", t.label, where, err, createdSentence(outAbs, created))
+			return ExitUsage
+		}
+		o.created, o.base = made, outAbs
+		outs[i] = o
+	}
+
 	code := ExitOK
 	for i, t := range targets {
-		c, err := scanOne(t, targets, dirs[i], attest.Options{RecordRoot: *recordRoot, GitTimeout: *gitTimeout}, stdout)
+		c, err := scanOne(t, outs[i], attest.Options{RecordRoot: *recordRoot, GitTimeout: *gitTimeout}, stdout)
 		if err != nil {
 			fmt.Fprintf(stderr, "discover scan: %q: %v\n", t.label, err)
 			return ExitUsage
@@ -166,7 +195,16 @@ func scan(args []string, stdout, stderr io.Writer) int {
 	return code
 }
 
-func scanOne(t target, all []target, outDir string, opts attest.Options, stdout io.Writer) (int, error) {
+// outputDir is an output directory held open: root is the handle every write goes through, path is the name it was
+// opened by (used only to see whether that name still leads to it), created lists what the scan had to make.
+type outputDir struct {
+	root    *os.Root
+	path    string
+	base    string
+	created []string
+}
+
+func scanOne(t target, out outputDir, opts attest.Options, stdout io.Writer) (int, error) {
 	before, err := attest.Attest(t.real, opts)
 	if err != nil {
 		return ExitUsage, err
@@ -192,20 +230,12 @@ func scanOne(t target, all []target, outDir string, opts attest.Options, stdout 
 			doc.Proof.Changed = append(doc.Proof.Changed, d.Field)
 		}
 	}
-	if err := os.MkdirAll(outDir, 0o755); err != nil {
-		return ExitUsage, err
-	}
-	// The directory is opened once. It is judged as opened, and written through that same handle, so a link that
-	// appears after this point cannot move the write.
-	root, err := os.OpenRoot(outDir)
-	if err != nil {
-		return ExitUsage, err
-	}
-	defer root.Close()
-	if o, bad, err := openedDirInsideTarget(root, outDir, all); err != nil {
-		return ExitUsage, err
-	} else if bad {
-		return ExitUsage, fmt.Errorf("refused: the output directory lies inside the target %q; nothing was written", o.label)
+	// The directory was opened and judged before the target was read. A path that no longer names it is a refusal:
+	// the write would land where the owner does not expect it.
+	root := out.root
+	if !stillNames(root, out.path) {
+		return ExitUsage, fmt.Errorf("refused: the output directory was replaced while the target was read; no output file was written; %s. "+
+			"Run the scan again", createdSentence(out.base, out.created))
 	}
 	mj, err := m.JSON()
 	if err != nil {
@@ -325,10 +355,106 @@ func openedDirInsideTarget(root *os.Root, dir string, targets []target) (target,
 	if err != nil {
 		return target{}, false, err
 	}
-	if ps, err := os.Stat(dir); err != nil || !os.SameFile(rs, ps) {
-		return target{}, false, errors.New("refused: the output directory was replaced while it was opened; nothing was written")
+	if !stillNames(root, dir) {
+		return target{}, false, errors.New("was replaced while it was opened")
 	}
 	return dirInsideTarget(rs, dir, targets)
+}
+
+// stillNames reports whether the path dir leads to the directory root holds. It only looks; it creates nothing.
+func stillNames(root *os.Root, dir string) bool {
+	rs, err := root.Stat(".")
+	if err != nil {
+		return false
+	}
+	ps, err := os.Stat(dir)
+	return err == nil && os.SameFile(rs, ps)
+}
+
+// openOutput makes the output directory dir and returns it held open. It opens the deepest directory that already
+// exists, judges that opened handle against every target, makes the missing directories one at a time through that
+// handle (a link inside it that points out is refused), opens the output directory through it and judges that too.
+// It returns every directory it made, also when it refuses. Its errors name labels and reasons, never a path.
+func openOutput(dir, outAbs string, targets []target) (outputDir, []string, error) {
+	anc, missing := dir, []string(nil)
+	for {
+		fi, err := os.Stat(anc)
+		if err == nil {
+			if !fi.IsDir() {
+				return outputDir{}, nil, fmt.Errorf("cannot be made: %q is not a directory", filepath.Base(anc))
+			}
+			break
+		}
+		parent := filepath.Dir(anc)
+		if parent == anc {
+			return outputDir{}, nil, fmt.Errorf("cannot be made (%s)", reasonOf(err))
+		}
+		missing = append([]string{filepath.Base(anc)}, missing...)
+		anc = parent
+	}
+	parent, err := os.OpenRoot(anc)
+	if err != nil {
+		return outputDir{}, nil, fmt.Errorf("cannot be opened (%s)", reasonOf(err))
+	}
+	defer parent.Close()
+	if o, bad, err := openedDirInsideTarget(parent, anc, targets); err != nil {
+		return outputDir{}, nil, fmt.Errorf("cannot be made: its existing parent %w", err)
+	} else if bad {
+		return outputDir{}, nil, fmt.Errorf("lies inside the target %q", o.label)
+	}
+	var created []string
+	rel := "."
+	for _, name := range missing {
+		next := filepath.Join(rel, name)
+		if err := parent.Mkdir(next, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+			return outputDir{}, created, fmt.Errorf("cannot be made (%s)", reasonOf(err))
+		} else if err == nil {
+			created = append(created, filepath.Join(anc, next))
+		}
+		rel = next
+	}
+	sub, err := parent.OpenRoot(rel)
+	if err != nil {
+		return outputDir{}, created, fmt.Errorf("cannot be opened (%s)", reasonOf(err))
+	}
+	if o, bad, err := openedDirInsideTarget(sub, dir, targets); err != nil || bad {
+		sub.Close()
+		if err != nil {
+			return outputDir{}, created, fmt.Errorf("%w", err)
+		}
+		return outputDir{}, created, fmt.Errorf("lies inside the target %q", o.label)
+	}
+	return outputDir{root: sub, path: dir}, created, nil
+}
+
+// reasonOf is the operating system's reason for err without the path the error carries.
+func reasonOf(err error) string {
+	var pe *fs.PathError
+	if errors.As(err, &pe) {
+		return pe.Err.Error()
+	}
+	var en syscall.Errno
+	if errors.As(err, &en) {
+		return en.Error()
+	}
+	return "unexpected error"
+}
+
+// createdSentence says what the scan made and left in place, by name: relative to --out where the directory lies
+// inside it, else by its own name.
+func createdSentence(outAbs string, created []string) string {
+	if len(created) == 0 {
+		return "no directory was created"
+	}
+	names := make([]string, len(created))
+	for i, p := range created {
+		name := filepath.Base(p)
+		if rel, err := filepath.Rel(outAbs, p); err == nil && rel != "." && !strings.HasPrefix(rel, "..") {
+			name = rel
+		}
+		names[i] = fmt.Sprintf("%q", name)
+	}
+	return "directories created and left in place: " + strings.Join(names, ", ")
 }
 
 // dirInsideTarget judges a directory whose identity is rs and whose path is dir.
@@ -375,10 +501,22 @@ func writeFresh(root *os.Root, name string, data []byte) error {
 		err = root.Rename(tmp, name)
 	}
 	if err != nil {
-		root.Remove(tmp)
+		if rerr := removeTemp(root, tmp); rerr != nil {
+			return &leftoverError{cause: err, tmp: tmp, reason: reasonOf(rerr)}
+		}
 	}
 	return err
 }
+
+// leftoverError is a failed write whose temporary file could not be removed either.
+type leftoverError struct {
+	cause  error
+	tmp    string
+	reason string
+}
+
+func (e *leftoverError) Error() string { return e.cause.Error() }
+func (e *leftoverError) Unwrap() error { return e.cause }
 
 // createFresh makes a file that did not exist: O_EXCL fails on any existing name, a link included.
 func createFresh(root *os.Root) (string, *os.File, error) {
@@ -406,8 +544,13 @@ func outputError(name string, err error) error {
 	if errors.As(err, &en) {
 		reason = en.Error()
 	}
+	left := ""
+	var lo *leftoverError
+	if errors.As(err, &lo) {
+		left = fmt.Sprintf(" The temporary file %s, in the output directory, could not be removed (%s); remove it.", lo.tmp, lo.reason)
+	}
 	return fmt.Errorf("refused: the output file %s could not be put in place (%s); the target was not changed. "+
-		"Remove what stands at that name, or choose another --out", name, reason)
+		"Remove what stands at that name, or choose another --out.%s", name, reason, left)
 }
 
 // freeName returns label, or the first label-N (N from 2) that no earlier target took, and marks it taken.

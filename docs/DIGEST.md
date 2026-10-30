@@ -193,6 +193,8 @@ regular file, or is a regular file with more than one name (a hard link, where t
 is refused by name before anything is read; remove it and run again. With one target, an `--out` that is a link is
 followed to its real directory, which must lie outside every target; if it does not, the scan is refused.
 
+Output directories are created before the target is read, through a handle confined to an existing directory outside
+every target; a refusal in that step names what was created, by its name relative to `--out`, and no absolute path.
 The output directory is opened once, judged as opened, and written through that same handle. Each output file is
 written to a fresh name in that directory (created with `O_EXCL`) and renamed into place, so no existing file is ever
 opened for writing. A hard link, a link or a FIFO that appears at an output name after the checks is replaced by the

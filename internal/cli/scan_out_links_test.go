@@ -176,14 +176,18 @@ func TestOutputLinkAppearingAfterTheChecksIsNotWrittenThrough(t *testing.T) {
 	}
 }
 
-// Ruling (b): a directory link that appears after the checks is caught by the check on the created directory.
+// Ruling (b): the output directories exist before the target is read, so a link can only arrive by replacing one. The
+// scan notices that the name no longer leads to the directory it holds, and writes nothing.
 func TestOutputDirectoryLinkAppearingAfterTheChecksIsRefused(t *testing.T) {
 	x := temp(t)
 	a := tree(t, filepath.Join(temp(t), "a"))
 	c := tree(t, filepath.Join(temp(t), "c"))
-	setHook(t, func(string) { os.Symlink(filepath.Join(a, "sub"), filepath.Join(x, "c")) })
+	setHook(t, func(string) {
+		os.Rename(filepath.Join(x, "c"), filepath.Join(x, "c.moved"))
+		os.Symlink(filepath.Join(a, "sub"), filepath.Join(x, "c"))
+	})
 	code, _, stderr := run(t, "--out", x, a, c)
-	if code != ExitUsage || !strings.Contains(stderr, "lies inside") {
+	if code != ExitUsage || !strings.Contains(stderr, "replaced") {
 		t.Errorf("exit %d, stderr %q", code, stderr)
 	}
 	for _, f := range []string{manifestFile, attestationFile} {
