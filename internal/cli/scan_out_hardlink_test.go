@@ -58,6 +58,34 @@ func TestHardLinkAppearingAfterTheChecksIsNotWrittenThrough(t *testing.T) {
 	}
 }
 
+// A directory that appears at an output name after the checks cannot be replaced by a file. The refusal is a sentence
+// that names the file and what to do, not the raw error of the root.
+func TestOutputNameTakenByADirectoryAfterTheChecksIsRefusedInASentence(t *testing.T) {
+	x := temp(t)
+	a := tree(t, filepath.Join(temp(t), "a"))
+	setHook(t, func(string) { os.Mkdir(filepath.Join(x, attestationFile), 0o755) })
+	code, _, stderr := run(t, "--out", x, a)
+	if code != ExitUsage || !strings.Contains(stderr, attestationFile) || !strings.Contains(stderr, "Remove what stands at that name") {
+		t.Errorf("exit %d, stderr %q", code, stderr)
+	}
+	if strings.Contains(stderr, "openat") || strings.Contains(stderr, x) {
+		t.Errorf("the refusal carries a raw error or a path: %q", stderr)
+	}
+	if entries, _ := filepath.Glob(filepath.Join(x, ".discover-*")); len(entries) != 0 {
+		t.Errorf("a temporary file was left behind: %v", entries)
+	}
+}
+
+// The refusal for an --out inside a target names the directory by its base name, never the path the user typed.
+func TestOutInsideTargetRefusalDoesNotEchoThePath(t *testing.T) {
+	a := tree(t, filepath.Join(temp(t), "a"))
+	out := filepath.Join(a, "sub")
+	code, _, stderr := run(t, "--out", out, a)
+	if code != ExitUsage || !strings.Contains(stderr, `"sub"`) || strings.Contains(stderr, a) {
+		t.Errorf("exit %d, stderr %q", code, stderr)
+	}
+}
+
 // End to end, the reviewer's layout: the output name is a second name of a file of the target. It needs link(2)
 // across two directories, which some sandboxes refuse.
 func TestHardLinkToTargetFileAtOutputNameIsRefused(t *testing.T) {

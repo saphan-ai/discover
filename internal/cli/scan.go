@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/saphan-ai/discover/internal/attest"
 	"github.com/saphan-ai/discover/internal/manifest"
@@ -110,7 +114,7 @@ func scan(args []string, stdout, stderr io.Writer) int {
 	for _, t := range targets {
 		if inside(outAbs, t.real) {
 			fmt.Fprintf(stderr, "discover scan: refused: --out %q lies inside the target %q; nothing was read or written. "+
-				"Choose a directory outside every target.\n", *out, t.label)
+				"Choose a directory outside every target.\n", filepath.Base(*out), t.label)
 			return ExitUsage
 		}
 	}
@@ -135,8 +139,8 @@ func scan(args []string, stdout, stderr io.Writer) int {
 		}
 	}
 
-	// The scan never writes through a link: what already stands where it will write is a plain directory and plain
-	// files, or the scan stops before it reads anything.
+	// The scan never writes into an existing file or through a link: what already stands where it will write is a
+	// plain directory and plain files with one name each, or the scan stops before it reads anything.
 	for i, t := range targets {
 		if msg := unplainOutput(dirs[i]); msg != "" {
 			fmt.Fprintf(stderr, "discover scan: refused: the output %s of target %q; nothing was read or written. "+
@@ -188,8 +192,16 @@ func scanOne(t target, all []target, outDir string, opts attest.Options, stdout 
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return ExitUsage, err
 	}
-	// A directory or a link that appeared since the checks is caught here, on the directory as it now is.
-	if o, bad := createdDirInsideTarget(outDir, all); bad {
+	// The directory is opened once. It is judged as opened, and written through that same handle, so a link that
+	// appears after this point cannot move the write.
+	root, err := os.OpenRoot(outDir)
+	if err != nil {
+		return ExitUsage, err
+	}
+	defer root.Close()
+	if o, bad, err := openedDirInsideTarget(root, outDir, all); err != nil {
+		return ExitUsage, err
+	} else if bad {
 		return ExitUsage, fmt.Errorf("refused: the output directory lies inside the target %q; nothing was written", o.label)
 	}
 	mj, err := m.JSON()
@@ -200,7 +212,7 @@ func scanOne(t target, all []target, outDir string, opts attest.Options, stdout 
 	if err != nil {
 		return ExitUsage, err
 	}
-	if err := writeOutputs(outDir, map[string][]byte{manifestFile: mj, attestationFile: append(aj, '\n')}); err != nil {
+	if err := writeOutputs(root, map[string][]byte{manifestFile: mj, attestationFile: append(aj, '\n')}); err != nil {
 		return ExitUsage, err
 	}
 
@@ -277,7 +289,8 @@ func inside(p, root string) bool {
 }
 
 // unplainOutput says what is wrong with an existing output path, or returns "" when nothing stands there or it is
-// as it should be: a directory for dir, a regular file for each output file. A link is wrong wherever it points.
+// as it should be: a directory for dir, a regular file with one name for each output file. A link is wrong wherever
+// it points, and so is a second name of a file, because a write into it would change the file it shares.
 // It names labels and output file names only, never a path.
 func unplainOutput(dir string) string {
 	fi, err := os.Lstat(dir)
@@ -288,49 +301,110 @@ func unplainOutput(dir string) string {
 		return "directory is a symbolic link or not a directory"
 	}
 	for _, name := range []string{manifestFile, attestationFile} {
-		if fi, err := os.Lstat(filepath.Join(dir, name)); err == nil && !fi.Mode().IsRegular() {
+		fi, err := os.Lstat(filepath.Join(dir, name))
+		if err != nil {
+			continue
+		}
+		if !fi.Mode().IsRegular() {
 			return "file " + name + " is a symbolic link or not a regular file"
+		}
+		if n, ok := linkCount(fi); ok && n > 1 {
+			return "file " + name + " is a hard link: it has more than one name"
 		}
 	}
 	return ""
 }
 
-// createdDirInsideTarget reports the target that dir lies inside, judged on the real path of dir as it is now.
-func createdDirInsideTarget(dir string, targets []target) (target, bool) {
+// openedDirInsideTarget reports the target that the opened output directory lies inside. The judgement is made on
+// the identity of the handle: root's own directory, then the directories above the path that still names it.
+func openedDirInsideTarget(root *os.Root, dir string, targets []target) (target, bool, error) {
+	rs, err := root.Stat(".")
+	if err != nil {
+		return target{}, false, err
+	}
+	if ps, err := os.Stat(dir); err != nil || !os.SameFile(rs, ps) {
+		return target{}, false, errors.New("refused: the output directory was replaced while it was opened; nothing was written")
+	}
+	return dirInsideTarget(rs, dir, targets)
+}
+
+// dirInsideTarget judges a directory whose identity is rs and whose path is dir.
+func dirInsideTarget(rs fs.FileInfo, dir string, targets []target) (target, bool, error) {
 	real, err := filepath.EvalSymlinks(dir)
 	if err != nil {
 		real = dir
 	}
 	for _, t := range targets {
-		if inside(real, t.real) {
-			return t, true
+		if tfi, err := os.Stat(t.real); err == nil && os.SameFile(rs, tfi) {
+			return t, true, nil
+		}
+		if inside(filepath.Dir(real), t.real) {
+			return t, true, nil
 		}
 	}
-	return target{}, false
+	return target{}, false, nil
 }
 
-// writeOutputs writes each file through a root opened on dir, so no write can leave dir, even when a link appears
-// after the checks. Each file is created or truncated as a regular file.
-func writeOutputs(dir string, files map[string][]byte) error {
-	root, err := os.OpenRoot(dir)
-	if err != nil {
-		return err
-	}
-	defer root.Close()
+// writeOutputs writes each file under a fresh name in root and renames it into place. It never opens an existing
+// output name for writing, so a hard link, a link or a FIFO standing at that name is replaced, never written into.
+func writeOutputs(root *os.Root, files map[string][]byte) error {
 	for _, name := range []string{manifestFile, attestationFile} {
-		f, err := root.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
-		if err != nil {
-			return err
-		}
-		_, werr := f.Write(files[name])
-		if cerr := f.Close(); werr == nil {
-			werr = cerr
-		}
-		if werr != nil {
-			return werr
+		if err := writeFresh(root, name, files[name]); err != nil {
+			return outputError(name, err)
 		}
 	}
 	return nil
+}
+
+func writeFresh(root *os.Root, name string, data []byte) error {
+	tmp, f, err := createFresh(root)
+	if err != nil {
+		return err
+	}
+	_, err = f.Write(data)
+	if err == nil {
+		err = f.Sync()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err == nil {
+		err = root.Rename(tmp, name)
+	}
+	if err != nil {
+		root.Remove(tmp)
+	}
+	return err
+}
+
+// createFresh makes a file that did not exist: O_EXCL fails on any existing name, a link included.
+func createFresh(root *os.Root) (string, *os.File, error) {
+	var last error
+	for i := 0; i < 8; i++ {
+		var b [8]byte
+		if _, err := rand.Read(b[:]); err != nil {
+			return "", nil, err
+		}
+		tmp := ".discover-" + hex.EncodeToString(b[:]) + ".tmp"
+		f, err := root.OpenFile(tmp, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
+		if err == nil {
+			return tmp, f, nil
+		}
+		last = err
+	}
+	return "", nil, last
+}
+
+// outputError says, in a sentence, which output file could not be put in place and what to do. It carries the
+// operating system's reason and no path.
+func outputError(name string, err error) error {
+	reason := "the write failed"
+	var en syscall.Errno
+	if errors.As(err, &en) {
+		reason = en.Error()
+	}
+	return fmt.Errorf("refused: the output file %s could not be put in place (%s); the target was not changed. "+
+		"Remove what stands at that name, or choose another --out", name, reason)
 }
 
 // freeName returns label, or the first label-N (N from 2) that no earlier target took, and marks it taken.
