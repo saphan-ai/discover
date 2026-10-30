@@ -1,0 +1,481 @@
+{
+  "extensions": {
+    "example": {
+      "any": [
+        "content",
+        1
+      ]
+    }
+  },
+  "repos": [
+    {
+      "absent": [
+        {
+          "reason": "the repository has no user interface",
+          "section": 11
+        }
+      ],
+      "attestation": {
+        "git": {
+          "branch": "main",
+          "clean": true,
+          "detached": false,
+          "dirty_paths": [],
+          "head": "4d2d0af"
+        },
+        "mode": "git",
+        "read_manifest": {
+          "bytes_read": 460,
+          "entries": [
+            {
+              "bytes": 120,
+              "path": "go.mod",
+              "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+            },
+            {
+              "bytes": 340,
+              "path": "Makefile",
+              "sha256": "3333333333333333333333333333333333333333333333333333333333333333"
+            }
+          ],
+          "files_read": 2
+        },
+        "read_only_proof": {
+          "after": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+          "status": "EQUAL"
+        },
+        "root": "api",
+        "tree": {
+          "bytes": 20480,
+          "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "files": 14,
+          "links": 0,
+          "submodules": 0,
+          "unreadable": 0
+        },
+        "untracked": {
+          "bytes": 12,
+          "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "files": 1,
+          "links": 0,
+          "submodules": 0,
+          "unreadable": 0
+        }
+      },
+      "ci": [
+        {
+          "source": {
+            "file": ".github/workflows/ci.yml",
+            "line": 1
+          },
+          "system": "github-actions"
+        }
+      ],
+      "commands": [
+        {
+          "executed": false,
+          "kind": "build",
+          "source": {
+            "file": "Makefile",
+            "line": 4
+          },
+          "text": "make build"
+        },
+        {
+          "executed": false,
+          "kind": "test",
+          "source": {
+            "file": "Makefile",
+            "line": 12
+          },
+          "text": "go test ./..."
+        }
+      ],
+      "containers": [
+        {
+          "image": "golang:1.26",
+          "kind": "dockerfile",
+          "source": {
+            "file": "Dockerfile",
+            "line": 1
+          }
+        }
+      ],
+      "entry_points": [
+        {
+          "kind": "main",
+          "name": "api",
+          "source": {
+            "file": "cmd/api/main.go",
+            "line": 8
+          }
+        }
+      ],
+      "findings": [
+        {
+          "kind": "secret",
+          "secret_type": "api-token",
+          "severity": "high",
+          "source": {
+            "file": "config/dev.env",
+            "line": 3
+          }
+        },
+        {
+          "kind": "todo",
+          "severity": "info",
+          "source": {
+            "file": "internal/store/store.go",
+            "line": 77
+          },
+          "text": "TODO: batch the writes"
+        }
+      ],
+      "inventory": {
+        "bytes_total": 20480,
+        "files_total": 14,
+        "languages": [
+          {
+            "files": 12,
+            "name": "Go"
+          }
+        ],
+        "top_level": [
+          {
+            "kind": "file",
+            "name": "go.mod"
+          },
+          {
+            "kind": "file",
+            "name": "Makefile"
+          },
+          {
+            "kind": "dir",
+            "name": "cmd"
+          }
+        ]
+      },
+      "name": "api",
+      "narrative": {
+        "claims": []
+      },
+      "open_questions": [
+        {
+          "context": {
+            "file": "internal/store/store.go",
+            "line": 12
+          },
+          "options": [
+            "postgres",
+            "sqlite",
+            "unknown"
+          ],
+          "question": "Which database does the store talk to?",
+          "topic": "persistence"
+        }
+      ],
+      "recommendations": [
+        {
+          "citations": [
+            {
+              "file": "go.mod",
+              "line": 5
+            }
+          ],
+          "text": "Pin the router version."
+        }
+      ],
+      "stack": [
+        {
+          "layer": "language",
+          "source": {
+            "file": "go.mod",
+            "key": "go"
+          },
+          "technology": "Go",
+          "version": "1.26.0"
+        },
+        {
+          "layer": "library",
+          "source": {
+            "file": "go.mod",
+            "line": 5
+          },
+          "technology": "example.org/router",
+          "version": null,
+          "version_note": "not pinned"
+        }
+      ],
+      "structure": {
+        "architecture": [
+          {
+            "examples": [
+              {
+                "file": "internal/http/handler.go",
+                "line": 22
+              }
+            ],
+            "text": "handlers call a store package"
+          }
+        ],
+        "naming": [
+          {
+            "examples": [
+              {
+                "file": "internal/store/store.go",
+                "line": 1
+              }
+            ],
+            "text": "packages are short lower-case words"
+          }
+        ],
+        "patterns": [
+          {
+            "examples": [
+              {
+                "file": "cmd/api/main.go",
+                "line": 1
+              }
+            ],
+            "text": "one binary under cmd"
+          }
+        ]
+      },
+      "ui": [],
+      "wiring": [
+        {
+          "relation": "called_by",
+          "source": {
+            "file": "internal/http/handler.go",
+            "line": 40
+          },
+          "target": "web"
+        }
+      ]
+    },
+    {
+      "absent": [
+        {
+          "reason": "too few files to name a pattern",
+          "section": 3
+        },
+        {
+          "reason": "no entry point was declared",
+          "section": 4
+        },
+        {
+          "reason": "nothing was found to ask about",
+          "section": 9
+        },
+        {
+          "reason": "nothing was found to recommend",
+          "section": 10
+        }
+      ],
+      "attestation": {
+        "git": {
+          "branch": "",
+          "clean": false,
+          "detached": true,
+          "dirty_paths": [
+            "src/app.ts"
+          ],
+          "head": "9f8e7d6"
+        },
+        "mode": "git",
+        "read_manifest": {
+          "bytes_read": 0,
+          "entries": [],
+          "files_read": 0
+        },
+        "read_only_proof": {
+          "after": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+          "before": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "status": "NOT-EQUAL"
+        },
+        "root": "web",
+        "tree": {
+          "bytes": 51200,
+          "digest": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+          "files": 31,
+          "links": 1,
+          "submodules": 0,
+          "unreadable": 2
+        }
+      },
+      "ci": [],
+      "commands": [
+        {
+          "executed": false,
+          "kind": "run",
+          "source": {
+            "file": "package.json",
+            "key": "scripts.start"
+          },
+          "text": "npm start"
+        }
+      ],
+      "containers": [],
+      "entry_points": [],
+      "findings": [
+        {
+          "kind": "hot_spot",
+          "severity": "low",
+          "source": {
+            "file": "src/app.ts",
+            "line": 1
+          },
+          "text": "one file holds most of the logic"
+        }
+      ],
+      "inventory": {
+        "bytes_total": 51200,
+        "files_total": 31,
+        "languages": [
+          {
+            "files": 30,
+            "name": "TypeScript"
+          }
+        ],
+        "top_level": [
+          {
+            "kind": "file",
+            "name": "package.json"
+          }
+        ]
+      },
+      "name": "web",
+      "narrative": {
+        "claims": []
+      },
+      "open_questions": [],
+      "recommendations": [],
+      "stack": [
+        {
+          "layer": "language",
+          "source": {
+            "file": "package.json",
+            "key": "devDependencies.typescript"
+          },
+          "technology": "TypeScript",
+          "version": "5.4.0"
+        }
+      ],
+      "structure": {
+        "architecture": [],
+        "naming": [],
+        "patterns": []
+      },
+      "ui": [
+        {
+          "kind": "screen",
+          "source": {
+            "file": "src/login.tsx",
+            "line": 10
+          },
+          "text": "Login"
+        }
+      ],
+      "wiring": [
+        {
+          "relation": "depends_on",
+          "source": {
+            "file": "src/client.ts",
+            "line": 3
+          },
+          "target": "api"
+        }
+      ]
+    }
+  ],
+  "scan": {
+    "finished": "2026-10-28T10:00:05+02:00",
+    "read_only_proof_all_equal": false,
+    "started": "2026-10-28T10:00:00Z",
+    "targets": [
+      {
+        "mode": "git",
+        "path": "api"
+      },
+      {
+        "mode": "git",
+        "path": "web"
+      }
+    ]
+  },
+  "schema_version": "discover/v1",
+  "tool": {
+    "commit": "abc1234",
+    "name": "discover",
+    "version": "0.1.0"
+  },
+  "workspace_profile": {
+    "repos": [
+      {
+        "ci": [
+          {
+            "source": {
+              "file": ".github/workflows/ci.yml",
+              "line": 1
+            },
+            "system": "github-actions"
+          }
+        ],
+        "commands": {
+          "build": [
+            {
+              "source": {
+                "file": "Makefile",
+                "line": 4
+              },
+              "text": "make build"
+            }
+          ],
+          "run": [],
+          "test": [
+            {
+              "source": {
+                "file": "Makefile",
+                "line": 12
+              },
+              "text": "go test ./..."
+            }
+          ]
+        },
+        "convention_files": [
+          "Makefile"
+        ],
+        "languages": [
+          "Go"
+        ],
+        "name": "api",
+        "relative_path": "api",
+        "vcs": "git"
+      },
+      {
+        "ci": [],
+        "commands": {
+          "build": [],
+          "run": [
+            {
+              "source": {
+                "file": "package.json",
+                "key": "scripts.start"
+              },
+              "text": "npm start"
+            }
+          ],
+          "test": []
+        },
+        "convention_files": [],
+        "languages": [
+          "TypeScript"
+        ],
+        "name": "web",
+        "relative_path": "web",
+        "vcs": "git"
+      }
+    ]
+  }
+}

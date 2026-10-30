@@ -1,0 +1,160 @@
+{
+  "repos": [
+    {
+      "absent": [
+        {
+          "reason": "no manifest or build file was found",
+          "section": 2
+        },
+        {
+          "reason": "no source files were found",
+          "section": 3
+        },
+        {
+          "reason": "no entry points were found",
+          "section": 4
+        },
+        {
+          "reason": "no commands were found",
+          "section": 5
+        },
+        {
+          "reason": "no dependency declarations were found",
+          "section": 6
+        },
+        {
+          "reason": "no user interface strings were found",
+          "section": 8
+        },
+        {
+          "reason": "nothing was found to ask about",
+          "section": 9
+        },
+        {
+          "reason": "nothing was found to recommend",
+          "section": 10
+        }
+      ],
+      "attestation": {
+        "git": {
+          "branch": "main",
+          "clean": true,
+          "detached": false,
+          "dirty_paths": [],
+          "head": "1a2b3c4"
+        },
+        "mode": "git",
+        "read_manifest": {
+          "bytes_read": 800,
+          "entries": [
+            {
+              "bytes": 800,
+              "path": "README.md",
+              "sha256": "5555555555555555555555555555555555555555555555555555555555555555"
+            }
+          ],
+          "files_read": 1
+        },
+        "read_only_proof": {
+          "after": "4444444444444444444444444444444444444444444444444444444444444444",
+          "before": "4444444444444444444444444444444444444444444444444444444444444444",
+          "status": "EQUAL"
+        },
+        "root": "/srv/work/tool",
+        "tree": {
+          "bytes": 1900,
+          "digest": "4444444444444444444444444444444444444444444444444444444444444444",
+          "files": 3,
+          "links": 0,
+          "submodules": 0,
+          "unreadable": 0
+        }
+      },
+      "ci": [],
+      "commands": [],
+      "containers": [],
+      "entry_points": [],
+      "findings": [
+        {
+          "kind": "prompt_injection",
+          "severity": "medium",
+          "source": {
+            "file": "README.md",
+            "line": 14
+          },
+          "text": "the text asks a reader to ignore earlier instructions"
+        }
+      ],
+      "inventory": {
+        "bytes_total": 800,
+        "files_total": 1,
+        "languages": [
+          {
+            "files": 1,
+            "name": "Markdown"
+          }
+        ],
+        "top_level": [
+          {
+            "kind": "file",
+            "name": "README.md"
+          }
+        ]
+      },
+      "name": "tool",
+      "narrative": {
+        "claims": [
+          {
+            "citations": [],
+            "text": "The repository is documentation only."
+          }
+        ],
+        "model": "example-model"
+      },
+      "open_questions": [],
+      "recommendations": [],
+      "stack": [],
+      "structure": {
+        "architecture": [],
+        "naming": [],
+        "patterns": []
+      },
+      "ui": [],
+      "wiring": []
+    }
+  ],
+  "scan": {
+    "finished": "2026-10-28T11:02:00Z",
+    "read_only_proof_all_equal": true,
+    "started": "2026-10-28T11:00:00Z",
+    "targets": [
+      {
+        "mode": "git",
+        "path": "."
+      }
+    ]
+  },
+  "schema_version": "discover/v1",
+  "tool": {
+    "commit": "abc1234",
+    "name": "discover",
+    "version": "0.1.0"
+  },
+  "workspace_profile": {
+    "repos": [
+      {
+        "ci": [],
+        "commands": {
+          "build": [],
+          "run": [],
+          "test": []
+        },
+        "convention_files": [],
+        "languages": [],
+        "name": "tool",
+        "relative_path": ".",
+        "vcs": "git"
+      }
+    ]
+  }
+}
