@@ -3,6 +3,7 @@ package inventory_test
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -17,6 +18,10 @@ import (
 )
 
 const fixtures = "../../../testdata/repos"
+
+// update rewrites the golden files from the git-mode result: go test ./internal/scan/inventory -update. Read the
+// diff before committing it.
+var update = flag.Bool("update", false, "rewrite the golden files")
 
 // copyTree copies a committed fixture into a fresh directory, so a test may add files to it.
 func copyTree(t *testing.T, name string) string {
@@ -97,7 +102,7 @@ func TestInventoryEqualsTheGoldenFileInBothModes(t *testing.T) {
 				res, _ := run(t, dir, mode, inventory.Options{})
 				got := marshal(t, golden{res.Inventory, res.Skipped})
 				path := filepath.Join("..", "..", "..", "testdata", "golden", name+".inventory.json")
-				if os.Getenv("DISCOVER_UPDATE_GOLDEN") != "" && mode == attest.ModeGit {
+				if *update && mode == attest.ModeGit {
 					if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 						t.Fatal(err)
 					}

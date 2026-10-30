@@ -1,0 +1,56 @@
+{
+  "inventory": {
+    "top_level": [
+      {
+        "name": ".gitignore",
+        "kind": "file"
+      },
+      {
+        "name": "Makefile",
+        "kind": "file"
+      },
+      {
+        "name": "README.md",
+        "kind": "file"
+      },
+      {
+        "name": "assets",
+        "kind": "dir"
+      },
+      {
+        "name": "cmd",
+        "kind": "dir"
+      },
+      {
+        "name": "docs",
+        "kind": "dir"
+      },
+      {
+        "name": "go.mod",
+        "kind": "file"
+      },
+      {
+        "name": "internal",
+        "kind": "dir"
+      }
+    ],
+    "languages": [
+      {
+        "name": "Go",
+        "files": 3
+      },
+      {
+        "name": "Markdown",
+        "files": 2
+      }
+    ],
+    "files_total": 9,
+    "bytes_total": 603
+  },
+  "skipped": [
+    {
+      "path": "assets/blob.bin",
+      "reason": "binary"
+    }
+  ]
+}
