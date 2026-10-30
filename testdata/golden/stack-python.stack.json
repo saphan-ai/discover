@@ -1,0 +1,213 @@
+{
+  "rows": [
+    {
+      "layer": "runtime",
+      "technology": "Python",
+      "version": "3.12.3",
+      "source": {
+        "file": ".python-version",
+        "line": 1
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "Python",
+      "version": "^3.11",
+      "source": {
+        "file": "legacy/pyproject.toml",
+        "key": "python",
+        "line": 2
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "django",
+      "version": "^5.0",
+      "source": {
+        "file": "legacy/pyproject.toml",
+        "key": "django",
+        "line": 3
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "celery",
+      "version": "5.3.6",
+      "source": {
+        "file": "legacy/pyproject.toml",
+        "key": "celery",
+        "line": 4
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "local-lib",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "legacy/pyproject.toml",
+        "key": "local-lib",
+        "line": 5
+      }
+    },
+    {
+      "layer": "dev-dependency",
+      "technology": "black",
+      "version": "24.4.2",
+      "source": {
+        "file": "legacy/pyproject.toml",
+        "key": "black",
+        "line": 8
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "setuptools",
+      "version": "\u003e=68",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "setuptools",
+        "line": 2
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "wheel",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "wheel",
+        "line": 2
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "Python",
+      "version": "\u003e=3.10",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "requires-python",
+        "line": 7
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "requests",
+      "version": "\u003e=2.31,\u003c3",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "requests",
+        "line": 9
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "flask",
+      "version": "==3.0.3",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "flask",
+        "line": 10
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "rich",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "rich",
+        "line": 11
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "numpy",
+      "version": "~=1.26",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "numpy",
+        "line": 12
+      }
+    },
+    {
+      "layer": "optional-dependency",
+      "technology": "sphinx",
+      "version": "\u003e=7",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "sphinx",
+        "line": 16
+      }
+    },
+    {
+      "layer": "dev-dependency",
+      "technology": "pytest",
+      "version": "==8.2.0",
+      "source": {
+        "file": "pyproject.toml",
+        "key": "pytest",
+        "line": 19
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "pytest",
+      "version": "\u003e=8",
+      "source": {
+        "file": "requirements-dev.txt",
+        "key": "pytest",
+        "line": 1
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "requests",
+      "version": "==2.31.0",
+      "source": {
+        "file": "requirements.txt",
+        "key": "requests",
+        "line": 2
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "urllib3",
+      "version": "\u003e=1.26,\u003c3",
+      "source": {
+        "file": "requirements.txt",
+        "key": "urllib3",
+        "line": 3
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "pandas",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "requirements.txt",
+        "key": "pandas",
+        "line": 4
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "flask",
+      "version": "==3.0.3",
+      "source": {
+        "file": "requirements.txt",
+        "key": "flask",
+        "line": 7
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "path": "requirements.txt",
+      "reason": "requirements lines not read (options, editable or malformed): lines 5, 6"
+    }
+  ]
+}

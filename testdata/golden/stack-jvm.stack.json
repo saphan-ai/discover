@@ -1,0 +1,178 @@
+{
+  "rows": [
+    {
+      "layer": "build",
+      "technology": "org.jetbrains.kotlin.jvm",
+      "version": "1.9.22",
+      "source": {
+        "file": "app/build.gradle.kts",
+        "key": "jvm",
+        "line": 2
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "io.ktor.plugin",
+      "version": "2.3.9",
+      "source": {
+        "file": "app/build.gradle.kts",
+        "key": "io.ktor.plugin",
+        "line": 3
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "Java",
+      "version": "21",
+      "source": {
+        "file": "app/build.gradle.kts",
+        "key": "jvmToolchain",
+        "line": 7
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "io.ktor:ktor-server-core",
+      "version": "2.3.9",
+      "source": {
+        "file": "app/build.gradle.kts",
+        "key": "io.ktor:ktor-server-core",
+        "line": 11
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "java",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "build.gradle",
+        "key": "java",
+        "line": 2
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "org.springframework.boot",
+      "version": "3.2.4",
+      "source": {
+        "file": "build.gradle",
+        "key": "org.springframework.boot",
+        "line": 3
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "Java",
+      "version": "17",
+      "source": {
+        "file": "build.gradle",
+        "key": "sourceCompatibility",
+        "line": 6
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "com.google.guava:guava",
+      "version": "33.0.0-jre",
+      "source": {
+        "file": "build.gradle",
+        "key": "com.google.guava:guava",
+        "line": 9
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "org.slf4j:slf4j-api",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "build.gradle",
+        "key": "org.slf4j:slf4j-api",
+        "line": 10
+      }
+    },
+    {
+      "layer": "dev-dependency",
+      "technology": "junit:junit",
+      "version": "4.13.2",
+      "source": {
+        "file": "build.gradle",
+        "key": "junit",
+        "line": 11
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "Java",
+      "version": "17",
+      "source": {
+        "file": "pom.xml",
+        "key": "java.version",
+        "line": 13
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "Java",
+      "version": "17",
+      "source": {
+        "file": "pom.xml",
+        "key": "maven.compiler.source",
+        "line": 14
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "org.springframework.boot:spring-boot-starter-parent",
+      "version": "3.2.4",
+      "source": {
+        "file": "pom.xml",
+        "key": "spring-boot-starter-parent",
+        "line": 6
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "com.google.guava:guava",
+      "version": "33.0.0-jre",
+      "source": {
+        "file": "pom.xml",
+        "key": "guava",
+        "line": 20
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "org.springframework.boot:spring-boot-starter-web",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "pom.xml",
+        "key": "spring-boot-starter-web",
+        "line": 25
+      }
+    },
+    {
+      "layer": "dev-dependency",
+      "technology": "org.junit.jupiter:junit-jupiter",
+      "version": "${junit.version}",
+      "source": {
+        "file": "pom.xml",
+        "key": "junit-jupiter",
+        "line": 29
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "maven-compiler-plugin",
+      "version": "3.12.1",
+      "source": {
+        "file": "pom.xml",
+        "key": "maven-compiler-plugin",
+        "line": 37
+      }
+    }
+  ],
+  "skipped": []
+}

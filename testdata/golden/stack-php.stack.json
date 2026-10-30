@@ -1,0 +1,45 @@
+{
+  "rows": [
+    {
+      "layer": "dependency",
+      "technology": "ext-json",
+      "version": "*",
+      "source": {
+        "file": "composer.json",
+        "key": "ext-json",
+        "line": 5
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "monolog/monolog",
+      "version": "3.5.0",
+      "source": {
+        "file": "composer.json",
+        "key": "monolog/monolog",
+        "line": 6
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "PHP",
+      "version": "^8.2",
+      "source": {
+        "file": "composer.json",
+        "key": "php",
+        "line": 4
+      }
+    },
+    {
+      "layer": "dev-dependency",
+      "technology": "phpunit/phpunit",
+      "version": "^11.0",
+      "source": {
+        "file": "composer.json",
+        "key": "phpunit/phpunit",
+        "line": 9
+      }
+    }
+  ],
+  "skipped": []
+}
