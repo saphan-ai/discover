@@ -35,6 +35,9 @@ const (
 // betweenPasses runs after the first digest and before the second. Tests use it to change the target in between.
 var betweenPasses = func(root string) {}
 
+// removeTemp removes a temporary output file that was not renamed into place. Tests replace it to make the cleanup fail.
+var removeTemp = func(root *os.Root, name string) error { return root.Remove(name) }
+
 type proof struct {
 	Status  string   `json:"status"`
 	Scope   string   `json:"scope"`
