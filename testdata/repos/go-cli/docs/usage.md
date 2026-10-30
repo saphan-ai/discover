@@ -1,0 +1,3 @@
+# Usage
+
+Run `gocli NAME`.
