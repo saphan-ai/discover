@@ -15,7 +15,7 @@ var (
 const usage = `usage: discover <command>
 
 commands:
-  scan      scan a repository (not built yet)
+  scan      attest repositories or directories and prove the scan changed nothing
   verify    verify a report (not built yet)
   version   print the version
   help      print this list
@@ -34,7 +34,9 @@ func Run(args []string, stdout, stderr io.Writer) int {
 	case "version":
 		fmt.Fprintf(stdout, "discover %s (%s)\n", version, commit)
 		return ExitOK
-	case "scan", "verify":
+	case "scan":
+		return scan(args[1:], stdout, stderr)
+	case "verify":
 		fmt.Fprintf(stderr, "discover %s: not built yet\n", args[0])
 		return ExitUsage
 	default:

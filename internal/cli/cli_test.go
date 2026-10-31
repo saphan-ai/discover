@@ -20,7 +20,7 @@ func TestRun(t *testing.T) {
 		{"short help", []string{"-h"}, ExitOK, "verify", "", ""},
 		{"long help", []string{"--help"}, ExitOK, "version", "", ""},
 		{"version defaults", []string{"version"}, ExitOK, "discover dev (unknown)\n", "", ""},
-		{"scan stub", []string{"scan"}, ExitUsage, "", "not built yet", "commands:"},
+		{"scan without a target", []string{"scan"}, ExitUsage, "", "no target given", "commands:"},
 		{"verify stub", []string{"verify"}, ExitUsage, "", "not built yet", "commands:"},
 		{"unknown names itself", []string{"frobnicate"}, ExitUsage, "", `"frobnicate"`, ""},
 	}
