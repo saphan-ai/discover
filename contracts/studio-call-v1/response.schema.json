@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:saphan:studio-call:v1:response",
+  "title": "studio-call/v1 response",
+  "description": "The answer of one walled model call, with a receipt that names how it was billed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "text", "receipt"],
+  "properties": {
+    "contract": { "const": "studio-call/v1" },
+    "text": {
+      "type": "string",
+      "description": "The model's answer. At most max_output_bytes of the request, counted in UTF-8."
+    },
+    "receipt": { "$ref": "#/$defs/receipt" }
+  },
+  "$defs": {
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract", "billing_class", "vendor", "model", "run_id"],
+      "properties": {
+        "contract": { "const": "studio-call/v1" },
+        "billing_class": {
+          "const": "subscription",
+          "description": "The call runs on the user's own subscription seat. Any other class is refused by the caller."
+        },
+        "money": {
+          "enum": ["virtual"],
+          "description": "Optional. What the call cost in money terms: virtual, never real."
+        },
+        "vendor": { "type": "string", "minLength": 1 },
+        "model": { "type": "string", "minLength": 1 },
+        "run_id": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
