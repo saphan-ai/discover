@@ -167,19 +167,27 @@ func TestOutputLinkAppearingAfterTheChecksIsNotWrittenThrough(t *testing.T) {
 	if got := readFile(t, victim); got != "alpha\n" {
 		t.Errorf("the file behind the link was overwritten: %q (exit %d, stderr %q)", got, code, stderr)
 	}
-	if code != ExitUsage {
-		t.Errorf("exit %d, want %d", code, ExitUsage)
+	// The write goes to a fresh name and is renamed over the link, so the link is replaced and nothing is followed.
+	if fi, err := os.Lstat(filepath.Join(x, attestationFile)); err != nil || !fi.Mode().IsRegular() {
+		t.Errorf("the output name is not a regular file: %v, %v", fi, err)
+	}
+	if code != ExitOK {
+		t.Errorf("exit %d, want %d", code, ExitOK)
 	}
 }
 
-// Ruling (b): a directory link that appears after the checks is caught by the check on the created directory.
+// Ruling (b): the output directories exist before the target is read, so a link can only arrive by replacing one. The
+// scan notices that the name no longer leads to the directory it holds, and writes nothing.
 func TestOutputDirectoryLinkAppearingAfterTheChecksIsRefused(t *testing.T) {
 	x := temp(t)
 	a := tree(t, filepath.Join(temp(t), "a"))
 	c := tree(t, filepath.Join(temp(t), "c"))
-	setHook(t, func(string) { os.Symlink(filepath.Join(a, "sub"), filepath.Join(x, "c")) })
+	setHook(t, func(string) {
+		os.Rename(filepath.Join(x, "c"), filepath.Join(x, "c.moved"))
+		os.Symlink(filepath.Join(a, "sub"), filepath.Join(x, "c"))
+	})
 	code, _, stderr := run(t, "--out", x, a, c)
-	if code != ExitUsage || !strings.Contains(stderr, "lies inside") {
+	if code != ExitUsage || !strings.Contains(stderr, "replaced") {
 		t.Errorf("exit %d, stderr %q", code, stderr)
 	}
 	for _, f := range []string{manifestFile, attestationFile} {
@@ -196,14 +204,25 @@ func TestCreatedDirectoryIdentityIsCheckedAgainstEveryTarget(t *testing.T) {
 	alias := filepath.Join(out, "alias")
 	mustLink(t, filepath.Join(a, "sub"), alias)
 	targets := []target{{real: a, label: "a"}, {real: c, label: "c"}}
-	if got, bad := createdDirInsideTarget(alias, targets); !bad || got.label != "a" {
+	judge := func(dir string) (target, bool) {
+		fi, err := os.Stat(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, bad, err := dirInsideTarget(fi, dir, targets)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return got, bad
+	}
+	if got, bad := judge(alias); !bad || got.label != "a" {
 		t.Errorf("a link into target a: got (%q, %v)", got.label, bad)
 	}
-	if got, bad := createdDirInsideTarget(filepath.Join(c, "sub"), targets); !bad || got.label != "c" {
+	if got, bad := judge(filepath.Join(c, "sub")); !bad || got.label != "c" {
 		t.Errorf("a directory inside target c: got (%q, %v)", got.label, bad)
 	}
 	// Negative control: a real directory beside the targets is accepted.
-	if got, bad := createdDirInsideTarget(out, targets); bad {
+	if got, bad := judge(out); bad {
 		t.Errorf("a directory outside every target was refused as inside %q", got.label)
 	}
 }

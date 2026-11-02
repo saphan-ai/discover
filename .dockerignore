@@ -1,0 +1,6 @@
+# The image is built from go.mod, go.sum, cmd/ and internal/ only (see the Dockerfile).
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
