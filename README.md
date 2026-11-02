@@ -27,13 +27,28 @@ the same: what is actually in here?
 
 ## Try it first (5 minutes)
 
-You need [Go](https://go.dev/) 1.26 or newer, and git 2.45 or newer. Discover refuses an older git by name.
+You need [Docker](https://docs.docker.com/get-docker/) and git, and nothing else.
 
 Three words, so the output makes sense. The **target** is the folder Discover reads. The **fingerprint** is one long
 number worked out from every file in the target: change one byte anywhere and it changes. The **read-only proof** is
 the fingerprint taken before reading and again at the end: `EQUAL` means nothing was changed.
 
-Build Discover, then let it read its own code:
+Let Discover read its own code. In a macOS or Linux shell:
+
+```
+git clone https://github.com/saphan-ai/discover
+mkdir -p discover-out
+docker run --rm --network none --user "$(id -u):$(id -g)" \
+  -v "$PWD/discover:/discover:ro" -v "$PWD/discover-out:/out" \
+  saphan/discover scan /discover --out /out
+```
+
+`--network none` runs it with no network at all. `:ro` hands it the target read-only, so it could not change a byte if
+it tried. `--user` makes the results yours. To read your own repository, put its folder where `$PWD/discover` is and
+its name where `/discover` is, both times.
+
+Or build it from source, with [Go](https://go.dev/) 1.26 or newer and git 2.45 or newer (Discover refuses an older git
+by name):
 
 ```
 git clone https://github.com/saphan-ai/discover
@@ -43,7 +58,7 @@ cd ..
 discover/bin/discover scan discover
 ```
 
-You will see something like this (your numbers will differ):
+Either way you will see something like this (your numbers will differ):
 
 ```
 target: discover (git)
@@ -56,7 +71,8 @@ read-only proof: EQUAL <fingerprint> (covers tracked and untracked files, modes,
 `(git)` means the target is a git repository; a plain folder shows `(dir)`. `clean` means it had no uncommitted
 changes. The results are in a new folder, `discover-out`, beside the target, never inside it: `ATTESTATION.json` says
 what was read and holds the proof, and `READ_MANIFEST.json` will list every file a report cites (it is empty today,
-see below). Try `discover/bin/discover scan --out results path/one path/two` to read two folders at once. The exact
+see below). With the binary built from source, try `discover/bin/discover scan --out results path/one path/two` to
+read two folders at once. The exact
 rules for the fingerprint, with commands to work it out yourself: [docs/DIGEST.md](docs/DIGEST.md).
 
 ## What Discover does today
@@ -110,6 +126,8 @@ The open part of Discover. It runs on its own and needs nothing from Saphan Stud
 | [`docs/DIGEST.md`](docs/DIGEST.md) | how the fingerprint is made, what it covers, and how to recompute it |
 | [`docs/SCHEMA.md`](docs/SCHEMA.md) | the report format in words, and how it may change |
 | [`testdata/schema/`](testdata/schema) | sample reports the format accepts, and one it refuses for each rule |
+| [`Dockerfile`](Dockerfile) | the `saphan/discover` image: the binary and git, run as a user that is not root |
+| [`versions.env`](versions.env) | the image's base images, pinned by version and digest, and its name |
 | [`AGENTS.md`](AGENTS.md) | the rules for anyone, person or agent, who contributes here |
 
 ## Honest limits
@@ -121,7 +139,8 @@ The open part of Discover. It runs on its own and needs nothing from Saphan Stud
   [docs/DIGEST.md](docs/DIGEST.md) lists all of it.
 - When secret search arrives it will look for known shapes, so it will miss a secret that looks like ordinary text.
 - A source shows where a statement comes from. It does not show that the statement is right.
-- There are no ready-made downloads yet: build it from source. The automatic tests run on Linux. The macOS and
+- The ready-made download is the `saphan/discover` image, for Linux on Intel/AMD and ARM; there are no ready-made
+  programs for macOS or Windows yet, so build those from source. The automatic tests run on Linux. The macOS and
   Windows versions are built there, but not tested there.
 
 ## Development
@@ -130,7 +149,14 @@ The open part of Discover. It runs on its own and needs nothing from Saphan Stud
 make test          # check and test the code
 make build-all     # one program each for macOS, Linux and Windows, on Intel/AMD and ARM
 make blackout      # the check every change passes before it is published
+make image         # the container image, for this machine
+make image-check   # the image prints the same version and the same scans as bin/discover
+make scan          # Docker Scout over the image; refuses on any critical or high finding
+make push          # build both platforms, scan each, publish only the scanned digest
 ```
+
+Every base image is pinned by version and digest in [`versions.env`](versions.env); `make image` and `make push`
+refuse one that is not.
 
 Read [AGENTS.md](AGENTS.md) before you contribute.
 
