@@ -1,0 +1,12 @@
+{
+  "contract": "studio-call/v1",
+  "text": "The data block docs/notes.txt has two lines: alpha and beta.",
+  "receipt": {
+    "contract": "studio-call/v1",
+    "billing_class": "subscription",
+    "money": "virtual",
+    "vendor": "example-vendor",
+    "model": "example-model",
+    "run_id": "run-0001"
+  }
+}
