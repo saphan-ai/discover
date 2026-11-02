@@ -1,0 +1,124 @@
+{
+  "schema_version": "discover/v1",
+  "tool": { "name": "discover", "version": "0.4.0", "commit": "9f8e7d6" },
+  "scan": {
+    "started": "2026-10-30T09:00:00Z",
+    "finished": "2026-10-30T09:00:04Z",
+    "targets": [{ "path": "shop", "mode": "git" }],
+    "read_only_proof_all_equal": true
+  },
+  "repos": [
+    {
+      "name": "shop",
+      "attestation": {
+        "root": "shop",
+        "mode": "git",
+        "git": {
+          "branch": "main",
+          "detached": false,
+          "head": "4c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d",
+          "clean": false,
+          "dirty_paths": ["web/src/app.ts", "README.md"]
+        },
+        "tree": { "files": 42, "bytes": 183204, "links": 1, "submodules": 0, "unreadable": 0, "digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" },
+        "untracked": { "files": 2, "bytes": 512, "links": 0, "submodules": 0, "unreadable": 0, "digest": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" },
+        "read_only_proof": { "status": "EQUAL", "before": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc", "after": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc" },
+        "read_manifest": {
+          "entries": [{ "path": "go.mod", "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "bytes": 120 }],
+          "files_read": 1,
+          "bytes_read": 120
+        }
+      },
+      "inventory": {
+        "top_level": [
+          { "name": "web", "kind": "dir" },
+          { "name": "cmd", "kind": "dir" },
+          { "name": "go.mod", "kind": "file" },
+          { "name": "Makefile", "kind": "file" },
+          { "name": "current", "kind": "symlink" }
+        ],
+        "languages": [
+          { "name": "TypeScript", "files": 12 },
+          { "name": "Go", "files": 20 }
+        ],
+        "files_total": 42,
+        "bytes_total": 183204
+      },
+      "stack": [
+        { "layer": "frontend", "technology": "React", "version": "18.3.1", "source": { "file": "web/package.json", "key": "dependencies.react" } },
+        { "layer": "backend", "technology": "Go", "version": "1.22", "source": { "file": "go.mod", "line": 3 } },
+        { "layer": "build", "technology": "Node.js", "version": null, "version_note": "not pinned", "source": { "file": "web/package.json", "key": "engines" } }
+      ],
+      "structure": {
+        "patterns": [
+          { "text": "Handlers are grouped by resource, one file each", "examples": [{ "file": "internal/http/orders.go", "line": 12 }] }
+        ],
+        "naming": [
+          { "text": "Test files sit beside the code they test", "examples": [{ "file": "internal/http/orders_test.go", "line": 1 }] }
+        ],
+        "architecture": [
+          { "text": "The web client reaches the API only through one fetch wrapper", "examples": [{ "file": "web/src/api.ts", "line": 8 }, { "file": "web/src/app.ts", "line": 30 }] }
+        ]
+      },
+      "entry_points": [
+        { "kind": "main", "name": "shop", "source": { "file": "cmd/shop/main.go", "line": 10 } },
+        { "kind": "script", "name": "dev", "source": { "file": "web/package.json", "key": "scripts.dev" } }
+      ],
+      "commands": [
+        { "kind": "build", "text": "go build ./cmd/shop", "source": { "file": "Makefile", "line": 4 }, "executed": false },
+        { "kind": "test", "text": "go test ./...", "source": { "file": "Makefile", "line": 7 }, "executed": false },
+        { "kind": "run", "text": "npm run dev", "source": { "file": "web/package.json", "key": "scripts.dev" }, "executed": false },
+        { "kind": "lint", "text": "npm run lint", "source": { "file": "web/package.json", "key": "scripts.lint" }, "executed": false }
+      ],
+      "ci": [
+        { "system": "GitHub Actions", "source": { "file": ".github/workflows/ci.yml", "line": 1 } }
+      ],
+      "containers": [
+        { "kind": "dockerfile", "image": "golang:1.22-alpine", "source": { "file": "Dockerfile", "line": 1 } },
+        { "kind": "compose", "source": { "file": "compose.yaml", "key": "services.db" } }
+      ],
+      "wiring": [
+        { "target": "billing-api", "relation": "calls", "source": { "file": "internal/billing/client.go", "line": 22 } },
+        { "target": "postgres", "relation": "depends_on", "source": { "file": "compose.yaml", "key": "services.db.image" } }
+      ],
+      "findings": [
+        { "kind": "todo", "severity": "info", "source": { "file": "internal/http/orders.go", "line": 88 }, "text": "TODO: retry the payment call" },
+        { "kind": "hot_spot", "severity": "medium", "source": { "file": "internal/http/orders.go", "line": 40 }, "text": "The order handler is the largest file in the repository" },
+        { "kind": "anti_pattern", "severity": "low", "source": { "file": "web/src/app.ts", "line": 55 }, "text": "An error is caught and ignored" },
+        { "kind": "secret", "severity": "high", "source": { "file": "config/dev.env", "line": 3 }, "secret_type": "aws-access-key-id" },
+        { "kind": "dead_code_candidate", "severity": "info", "source": { "file": "internal/legacy/export.go", "line": 1 }, "text": "No caller of this package was found" },
+        { "kind": "prompt_injection", "severity": "medium", "source": { "file": "docs/notes.md", "line": 14 }, "text": "A comment addresses an automated reader and asks it to skip the review" }
+      ],
+      "ui": [
+        { "kind": "string", "text": "Your cart is empty", "source": { "file": "web/src/i18n/en.json", "key": "cart.empty" } },
+        { "kind": "screen", "text": "Checkout", "source": { "file": "web/src/pages/Checkout.tsx", "line": 1 } }
+      ],
+      "narrative": {
+        "model": "example-model",
+        "claims": [
+          { "text": "The service is one Go binary with a separate web client", "citations": [{ "file": "cmd/shop/main.go", "line": 10 }, { "file": "web/package.json", "key": "name" }] }
+        ]
+      },
+      "open_questions": [
+        { "topic": "Billing", "question": "Is billing-api owned by this team?", "context": { "file": "internal/billing/client.go", "line": 22 }, "options": ["Owned here", "Owned by another team", "A third-party service"] }
+      ],
+      "recommendations": [
+        { "text": "Feed the stack table into the technology register", "citations": [{ "file": "go.mod", "line": 3 }] }
+      ],
+      "absent": []
+    }
+  ],
+  "workspace_profile": {
+    "repos": [
+      {
+        "name": "shop",
+        "relative_path": ".",
+        "vcs": "git",
+        "languages": ["Go", "TypeScript"],
+        "commands": { "build": [{ "text": "go build ./cmd/shop", "source": { "file": "Makefile", "line": 4 } }], "test": [], "run": [] },
+        "convention_files": [],
+        "ci": []
+      }
+    ]
+  }
+}
