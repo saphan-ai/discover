@@ -181,6 +181,18 @@ func TestUnpinnedVersionPrintsNotPinned(t *testing.T) {
 	}
 }
 
+func TestReportHoldsNoHiddenCharacter(t *testing.T) {
+	for _, name := range []string{"full", "empty", "hostile"} {
+		t.Run(name, func(t *testing.T) {
+			for i, r := range string(render(t, name)) {
+				if r != '\n' && hidden(r) {
+					t.Errorf("byte %d: hidden character U+%04X in the report", i, r)
+				}
+			}
+		})
+	}
+}
+
 func TestRenderRefusesARepoIndexOutOfRange(t *testing.T) {
 	r := load(t, "empty")
 	for _, i := range []int{-1, 1} {

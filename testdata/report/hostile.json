@@ -30,7 +30,7 @@
         "bytes_total": 300
       },
       "stack": [
-        { "layer": "build", "technology": "Make", "version": null, "version_note": "not pinned", "source": { "file": "Makefile", "key": "all‮​evil" } }
+        { "layer": "build", "technology": "Make", "version": null, "version_note": "not pinned", "source": { "file": "Makefile", "key": "all\u202e\u200bevil" } }
       ],
       "structure": { "patterns": [], "naming": [], "architecture": [] },
       "entry_points": [],
