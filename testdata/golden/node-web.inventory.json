@@ -1,0 +1,55 @@
+{
+  "inventory": {
+    "top_level": [
+      {
+        "name": ".gitignore",
+        "kind": "file"
+      },
+      {
+        "name": "README.md",
+        "kind": "file"
+      },
+      {
+        "name": "package.json",
+        "kind": "file"
+      },
+      {
+        "name": "src",
+        "kind": "dir"
+      },
+      {
+        "name": "test",
+        "kind": "dir"
+      },
+      {
+        "name": "web",
+        "kind": "dir"
+      }
+    ],
+    "languages": [
+      {
+        "name": "JavaScript",
+        "files": 5
+      },
+      {
+        "name": "CSS",
+        "files": 1
+      },
+      {
+        "name": "HTML",
+        "files": 1
+      },
+      {
+        "name": "JSON",
+        "files": 1
+      },
+      {
+        "name": "Markdown",
+        "files": 1
+      }
+    ],
+    "files_total": 11,
+    "bytes_total": 758
+  },
+  "skipped": []
+}
