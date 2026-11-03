@@ -1,0 +1,73 @@
+{
+  "schema_version": "discover/v1",
+  "tool": { "name": "discover", "version": "0.4.0", "commit": "9f8e7d6" },
+  "scan": {
+    "started": "2026-10-30T09:10:00Z",
+    "finished": "2026-10-30T09:10:01Z",
+    "targets": [{ "path": "hostile", "mode": "dir" }],
+    "read_only_proof_all_equal": true
+  },
+  "repos": [
+    {
+      "name": "hostile",
+      "attestation": {
+        "root": "hostile",
+        "mode": "dir",
+        "tree": { "files": 5, "bytes": 300, "links": 0, "submodules": 0, "unreadable": 0, "digest": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" },
+        "read_only_proof": { "status": "EQUAL", "before": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "after": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" },
+        "read_manifest": { "entries": [], "files_read": 0, "bytes_read": 0 }
+      },
+      "inventory": {
+        "top_level": [
+          { "name": "# heading", "kind": "file" },
+          { "name": "[click](https://evil.example)", "kind": "file" },
+          { "name": "<img src=x onerror=alert(1)>", "kind": "file" },
+          { "name": "a|b", "kind": "file" },
+          { "name": "Makefile", "kind": "file" }
+        ],
+        "languages": [{ "name": "*Make*", "files": 1 }],
+        "files_total": 5,
+        "bytes_total": 300
+      },
+      "stack": [
+        { "layer": "build", "technology": "Make", "version": null, "version_note": "not pinned", "source": { "file": "Makefile", "key": "all\u202e\u200bevil" } }
+      ],
+      "structure": { "patterns": [], "naming": [], "architecture": [] },
+      "entry_points": [],
+      "commands": [
+        { "kind": "build", "text": "echo ``id`` `x` <script>alert(1)</script> | tee out", "source": { "file": "Makefile", "line": 2 }, "executed": false }
+      ],
+      "ci": [],
+      "containers": [],
+      "wiring": [],
+      "findings": [
+        { "kind": "todo", "severity": "info", "source": { "file": "Makefile", "line": 1 }, "text": "TODO see https://evil.example or www.evil.example ![x](y) <b>bold</b> & $x$" }
+      ],
+      "ui": [],
+      "narrative": { "claims": [] },
+      "open_questions": [],
+      "recommendations": [],
+      "absent": [
+        { "section": 3, "reason": "no source files were found" },
+        { "section": 4, "reason": "no entry points were found" },
+        { "section": 6, "reason": "none\n## injected heading" },
+        { "section": 8, "reason": "no user interface strings were found" },
+        { "section": 9, "reason": "nothing was found to ask about" },
+        { "section": 10, "reason": "nothing was found to recommend" }
+      ]
+    }
+  ],
+  "workspace_profile": {
+    "repos": [
+      {
+        "name": "hostile",
+        "relative_path": ".",
+        "vcs": "none",
+        "languages": [],
+        "commands": { "build": [], "test": [], "run": [] },
+        "convention_files": [],
+        "ci": []
+      }
+    ]
+  }
+}
