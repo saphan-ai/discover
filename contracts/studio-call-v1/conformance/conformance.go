@@ -61,9 +61,24 @@ const (
 	OutcomeRefuseStudio Outcome = 3 // the answer is not a version list: the caller refuses Studio by name
 )
 
-// Discover asks the executable which contracts it serves and says which outcome the caller takes.
-func (o Options) Discover() (Outcome, []string, error) {
-	return OutcomeRefuseStudio, nil, errors.New("not implemented")
+// FindStudio asks the executable which contracts it serves and says which outcome the caller takes (README, Finding
+// Studio). No executable, or one that exits non-zero because it does not know the verb, is outcome 2. Exit 0 with an
+// answer that is not a version list is outcome 3. A list without studio-call/v1 is outcome 2.
+func (o Options) FindStudio() (Outcome, []string, error) {
+	r := o.run(nil, 64<<10, nil, contractArgs...)
+	if r.err != nil || r.code != 0 {
+		return OutcomeWorkAlone, nil, fmt.Errorf("%w: the command did not answer (exit %d, %v)", ErrStudioAbsent, r.code, r.err)
+	}
+	versions, err := ParseContractList(string(r.stdout))
+	if err != nil {
+		return OutcomeRefuseStudio, nil, err
+	}
+	for _, v := range versions {
+		if v == Contract {
+			return OutcomeUse, versions, nil
+		}
+	}
+	return OutcomeWorkAlone, versions, fmt.Errorf("%w: %s is not among %v", ErrNotListed, Contract, versions)
 }
 
 // Schemas holds the compiled request and response schemas.
@@ -165,7 +180,7 @@ func truncate(s string, n int) string {
 }
 
 // markerPattern is the form of the marker the suite plants in a data block. A conforming call never repeats it
-// unless the instructions asked to quote.
+// unless the caller explicitly allowed quoting a data block.
 var markerPattern = regexp.MustCompile(`ZX-MARKER-[0-9A-Z]+`)
 
 type requestDoc struct {
@@ -176,22 +191,32 @@ type requestDoc struct {
 	} `json:"data"`
 }
 
-// CheckResponse applies the caller's side of the contract to one answer: the billing class, the response schema,
-// the output bound, and that data stayed data. The request must be a valid request.
+// CheckResponse applies the caller's side of the contract to one answer: the billing class, the money claim, the
+// response schema, the output bound, and that data stayed data. The request must be a valid request.
+//
+// quoteAllowed is the caller's own explicit decision that the answer may repeat text of a data block. Nothing is
+// derived from the words of the instructions. The data check sees only the suite's planted ZX-MARKER- markers, so
+// on real data it gives a caller no protection.
 func CheckResponse(s *Schemas, request, response []byte, quoteAllowed bool) error {
-	_ = quoteAllowed
 	var req requestDoc
 	if err := json.Unmarshal(request, &req); err != nil {
 		return fmt.Errorf("the request is not JSON: %w", err)
 	}
-	// The billing class is read first, so that it is refused by its own name whatever else is wrong.
+	// The billing class and the money claim are read first, so that each is refused by its own name whatever else
+	// is wrong. A money claim that is present and is not exactly "virtual" claims that money was spent.
 	var probe struct {
 		Receipt struct {
-			BillingClass *string `json:"billing_class"`
+			BillingClass *string         `json:"billing_class"`
+			Money        json.RawMessage `json:"money"`
 		} `json:"receipt"`
 	}
-	if json.Unmarshal(response, &probe) == nil && probe.Receipt.BillingClass != nil && *probe.Receipt.BillingClass != "subscription" {
-		return fmt.Errorf("%w: %q", ErrBillingClass, *probe.Receipt.BillingClass)
+	if json.Unmarshal(response, &probe) == nil {
+		if probe.Receipt.BillingClass != nil && *probe.Receipt.BillingClass != "subscription" {
+			return fmt.Errorf("%w: %q", ErrBillingClass, *probe.Receipt.BillingClass)
+		}
+		if probe.Receipt.Money != nil && string(probe.Receipt.Money) != `"virtual"` {
+			return fmt.Errorf("%w: the response claims money %s", ErrMoney, truncate(string(probe.Receipt.Money), 40))
+		}
 	}
 	if err := s.ValidateResponse(response); err != nil {
 		return fmt.Errorf("%w: %v", ErrResponseSchema, err)
@@ -205,7 +230,7 @@ func CheckResponse(s *Schemas, request, response []byte, quoteAllowed bool) erro
 	if len(resp.Text) > req.MaxOutputBytes {
 		return fmt.Errorf("%w: %d bytes, bound %d", ErrOutputBound, len(resp.Text), req.MaxOutputBytes)
 	}
-	if !strings.Contains(strings.ToLower(req.Instructions), "quote") {
+	if !quoteAllowed {
 		inInstructions := map[string]bool{}
 		for _, m := range markerPattern.FindAllString(req.Instructions, -1) {
 			inInstructions[m] = true
@@ -243,7 +268,46 @@ type result struct {
 	err            error // the command could not run at all
 }
 
-func (o Options) run(stdin []byte, args ...string) result {
+// limitWriter keeps at most max bytes. The first byte beyond that stops the command and marks the write as over.
+type limitWriter struct {
+	buf    bytes.Buffer
+	max    int
+	over   bool
+	cancel context.CancelFunc
+}
+
+func (w *limitWriter) Write(p []byte) (int, error) {
+	if w.buf.Len()+len(p) > w.max {
+		w.over = true
+		w.cancel()
+		return 0, ErrReadBound
+	}
+	return w.buf.Write(p)
+}
+
+// maxEnvelope is what a JSON response may add around the text, and the most a JSON string escape may multiply
+// the text: a control character is six bytes on the wire (\u00XX).
+const (
+	maxEnvelope  = 4096
+	maxEscape    = 6
+	defaultBound = 64 << 10
+)
+
+// ReadBound is how many bytes of standard output a caller reads from one call before it refuses the answer.
+func ReadBound(maxOutputBytes int) int { return maxOutputBytes*maxEscape + maxEnvelope }
+
+// readBoundFor reads max_output_bytes from a request that has one; any other input gets the default bound.
+func readBoundFor(request []byte) int {
+	var req requestDoc
+	if json.Unmarshal(request, &req) != nil || req.MaxOutputBytes < 1 || req.MaxOutputBytes > 1<<20 {
+		return defaultBound
+	}
+	return ReadBound(req.MaxOutputBytes)
+}
+
+// run executes the command. Standard output and standard error are each read up to bound bytes (standard error up
+// to the default bound); a command that writes more is stopped and the result carries ErrReadBound.
+func (o Options) run(stdin []byte, bound int, extraEnv []string, args ...string) result {
 	timeout := o.Timeout
 	if timeout == 0 {
 		timeout = 2 * time.Minute
@@ -251,14 +315,18 @@ func (o Options) run(stdin []byte, args ...string) result {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, o.Executable, args...)
-	cmd.Env = append(os.Environ(), o.Env...)
+	cmd.Env = append(append(os.Environ(), o.Env...), extraEnv...)
 	cmd.Stdin = bytes.NewReader(stdin)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	stdout := &limitWriter{max: bound, cancel: cancel}
+	stderr := &limitWriter{max: defaultBound, cancel: cancel}
+	cmd.Stdout, cmd.Stderr = stdout, stderr
 	err := cmd.Run()
-	r := result{stdout: stdout.Bytes(), stderr: stderr.Bytes()}
+	r := result{stdout: stdout.buf.Bytes(), stderr: stderr.buf.Bytes()}
 	var exit *exec.ExitError
 	switch {
+	case stdout.over || stderr.over:
+		r.err = ErrReadBound
+		r.code = -1
 	case errors.As(err, &exit):
 		r.code = exit.ExitCode()
 	case err != nil:
@@ -273,22 +341,8 @@ func Check(o Options) []Failure {
 	var fails []Failure
 	fail := func(name string, err error) { fails = append(fails, Failure{name, err}) }
 
-	r := o.run(nil, contractArgs...)
-	if r.err != nil || r.code != 0 {
-		fail("contract-list", fmt.Errorf("%w: the command did not answer (exit %d, %v)", ErrNotVersionList, r.code, r.err))
-		return fails
-	}
-	versions, err := ParseContractList(string(r.stdout))
-	if err != nil {
+	if outcome, _, err := o.FindStudio(); outcome != OutcomeUse {
 		fail("contract-list", err)
-		return fails
-	}
-	listed := false
-	for _, v := range versions {
-		listed = listed || v == Contract
-	}
-	if !listed {
-		fail("contract-list", fmt.Errorf("%w: %s is not among %v", ErrNotListed, Contract, versions))
 		return fails
 	}
 
@@ -299,12 +353,23 @@ func Check(o Options) []Failure {
 			fail("answer/"+name, err)
 			continue
 		}
-		r := o.run(request, callArgs...)
+		// The caller's decision on quoting is declared per fixture and handed to the executable as the one signal a
+		// stub can read; an executable that is a real model ignores it and decides by the instructions alone.
+		quote := o.QuoteAllowed[name]
+		var env []string
+		if quote {
+			env = []string{"STUB_QUOTE=1"}
+		}
+		r := o.run(request, readBoundFor(request), env, callArgs...)
+		if errors.Is(r.err, ErrReadBound) {
+			fail("answer/"+name, r.err)
+			continue
+		}
 		if r.err != nil || r.code != 0 {
 			fail("answer/"+name, fmt.Errorf("%w: exit %d, %v, %s", ErrCall, r.code, r.err, truncate(string(r.stderr), 200)))
 			continue
 		}
-		if err := CheckResponse(o.Schemas, request, r.stdout, false); err != nil {
+		if err := CheckResponse(o.Schemas, request, r.stdout, quote); err != nil {
 			fail("answer/"+name, err)
 		}
 	}
@@ -324,14 +389,18 @@ func Check(o Options) []Failure {
 	}
 	sort.Strings(refusalNames)
 	for _, name := range refusalNames {
-		r := o.run(refusals[name], callArgs...)
+		r := o.run(refusals[name], readBoundFor(refusals[name]), nil, callArgs...)
 		switch {
+		case errors.Is(r.err, ErrReadBound):
+			fail("refuse/"+name, r.err)
 		case r.err != nil:
 			fail("refuse/"+name, fmt.Errorf("%w: %v", ErrCall, r.err))
 		case r.code == 0:
 			fail("refuse/"+name, ErrAccepted)
 		case len(r.stdout) != 0:
 			fail("refuse/"+name, ErrRefusalOutput)
+		case len(bytes.TrimSpace(r.stderr)) == 0:
+			fail("refuse/"+name, ErrRefusalSilent)
 		}
 	}
 	return fails

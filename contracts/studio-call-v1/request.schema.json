@@ -21,7 +21,8 @@
     "max_output_bytes": {
       "type": "integer",
       "minimum": 1,
-      "description": "The most bytes the response text may hold, counted in UTF-8."
+      "maximum": 1048576,
+      "description": "The most bytes the response text may hold, counted in UTF-8. At most 1 MiB: far above any review answer, and it bounds what a caller must be ready to read."
     }
   },
   "$defs": {

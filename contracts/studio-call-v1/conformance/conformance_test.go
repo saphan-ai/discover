@@ -112,8 +112,8 @@ var mutations = []mutation{
 // goldenSchemas pins the two files of studio-call/v1. The contract is frozen: any edit to either file, however
 // small, is a new version in its own directory and never an edit here (README, Versioning).
 var goldenSchemas = map[string]string{
-	"request.schema.json":  "pending",
-	"response.schema.json": "pending",
+	"request.schema.json":  "4e445928901294f6b70c26b058e31a8d67c38a92cfc87a7914bc0730994e7ddd",
+	"response.schema.json": "627722b23ce33872379e748631f14ebd87115d83d20225da7631a17bbdeec6b3",
 }
 
 func TestV1SchemasAreFrozen(t *testing.T) {
@@ -348,8 +348,8 @@ func options(t *testing.T, mode string) Options {
 	return o
 }
 
-// The three outcomes of discovery, one stub mode each (README, Finding Studio).
-func TestDiscoverOutcomes(t *testing.T) {
+// The three outcomes of finding Studio, one stub mode each (README, Finding Studio).
+func TestFindStudioOutcomes(t *testing.T) {
 	cases := []struct {
 		name    string
 		mode    string
@@ -369,7 +369,7 @@ func TestDiscoverOutcomes(t *testing.T) {
 			if c.exe != "" {
 				o.Executable = c.exe
 			}
-			got, _, err := o.Discover()
+			got, _, err := o.FindStudio()
 			if got != c.outcome {
 				t.Errorf("outcome %d, want %d (%v)", got, c.outcome, err)
 			}

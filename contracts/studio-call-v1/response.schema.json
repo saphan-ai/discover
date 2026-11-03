@@ -18,7 +18,7 @@
     "receipt": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["contract", "billing_class", "vendor", "model", "run_id"],
+      "required": ["contract", "billing_class", "money", "vendor", "model", "run_id"],
       "properties": {
         "contract": { "const": "studio-call/v1" },
         "billing_class": {
@@ -27,7 +27,7 @@
         },
         "money": {
           "enum": ["virtual"],
-          "description": "Optional. What the call cost in money terms: virtual, never real."
+          "description": "Required. What the call cost in money terms: virtual. A call that would spend money is never started; a response that claims real or mixed money is refused by name."
         },
         "vendor": { "type": "string", "minLength": 1 },
         "model": { "type": "string", "minLength": 1 },
