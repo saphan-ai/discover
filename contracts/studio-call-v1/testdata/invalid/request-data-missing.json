@@ -1,0 +1,5 @@
+{
+  "contract": "studio-call/v1",
+  "instructions": "List the headings found in the data blocks.",
+  "max_output_bytes": 4096
+}

@@ -46,7 +46,25 @@ var (
 	ErrDataObeyed     = errors.New("the response carries text that only a data block held: data was treated as instructions")
 	ErrAccepted       = errors.New("a request that breaks the contract was accepted")
 	ErrRefusalOutput  = errors.New("a refusal wrote a response")
+	ErrMoney          = errors.New("the receipt does not say money is virtual")
+	ErrStudioAbsent   = errors.New("Studio is not found or too old")
+	ErrRefusalSilent  = errors.New("a refusal gave no reason on standard error")
+	ErrReadBound      = errors.New("the output is longer than the caller's read bound")
 )
+
+// Outcome is what a caller does after it asked a saphan executable which contracts it serves.
+type Outcome int
+
+const (
+	OutcomeUse          Outcome = 1 // the contract is listed: use it, when the user asked for it
+	OutcomeWorkAlone    Outcome = 2 // Studio is absent or too old: the caller works alone
+	OutcomeRefuseStudio Outcome = 3 // the answer is not a version list: the caller refuses Studio by name
+)
+
+// Discover asks the executable which contracts it serves and says which outcome the caller takes.
+func (o Options) Discover() (Outcome, []string, error) {
+	return OutcomeRefuseStudio, nil, errors.New("not implemented")
+}
 
 // Schemas holds the compiled request and response schemas.
 type Schemas struct {
@@ -160,7 +178,8 @@ type requestDoc struct {
 
 // CheckResponse applies the caller's side of the contract to one answer: the billing class, the response schema,
 // the output bound, and that data stayed data. The request must be a valid request.
-func CheckResponse(s *Schemas, request, response []byte) error {
+func CheckResponse(s *Schemas, request, response []byte, quoteAllowed bool) error {
+	_ = quoteAllowed
 	var req requestDoc
 	if err := json.Unmarshal(request, &req); err != nil {
 		return fmt.Errorf("the request is not JSON: %w", err)
@@ -204,11 +223,12 @@ func CheckResponse(s *Schemas, request, response []byte) error {
 
 // Options says what to run the suite against.
 type Options struct {
-	Executable  string        // path of the executable under test
-	Env         []string      // extra environment entries, KEY=VALUE
-	Schemas     *Schemas      // the compiled schemas
-	TestdataDir string        // the directory that holds valid/ and invalid/
-	Timeout     time.Duration // per command; two minutes when zero
+	Executable   string          // path of the executable under test
+	Env          []string        // extra environment entries, KEY=VALUE
+	Schemas      *Schemas        // the compiled schemas
+	TestdataDir  string          // the directory that holds valid/ and invalid/
+	QuoteAllowed map[string]bool // fixture name to whether the caller allows quoting a data block
+	Timeout      time.Duration   // per command; two minutes when zero
 }
 
 // Failure is one check that did not hold: its name and the named refusal.
@@ -284,7 +304,7 @@ func Check(o Options) []Failure {
 			fail("answer/"+name, fmt.Errorf("%w: exit %d, %v, %s", ErrCall, r.code, r.err, truncate(string(r.stderr), 200)))
 			continue
 		}
-		if err := CheckResponse(o.Schemas, request, r.stdout); err != nil {
+		if err := CheckResponse(o.Schemas, request, r.stdout, false); err != nil {
 			fail("answer/"+name, err)
 		}
 	}

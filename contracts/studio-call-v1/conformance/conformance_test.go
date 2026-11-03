@@ -1,6 +1,8 @@
 package conformance
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -100,6 +102,31 @@ var mutations = []mutation{
 	{file: "response-contract-v2", base: "response-basic", pointer: "/receipt/contract", value: "studio-call/v2", leaf: "/receipt/contract"},
 	{file: "response-receipt-missing", base: "response-basic", pointer: "/receipt", remove: true, leaf: ""},
 	{file: "response-money-real", base: "response-basic", pointer: "/receipt/money", value: "real", leaf: "/receipt/money"},
+	{file: "response-money-mixed", base: "response-basic", pointer: "/receipt/money", value: "mixed", leaf: "/receipt/money"},
+	{file: "response-money-missing", base: "response-basic", pointer: "/receipt/money", remove: true, leaf: "/receipt"},
+	{file: "request-data-missing", base: "request-basic", pointer: "/data", remove: true, leaf: ""},
+	{file: "request-data-null", base: "request-basic", pointer: "/data", value: nil, leaf: "/data"},
+	{file: "request-max-output-over", base: "request-basic", pointer: "/max_output_bytes", value: float64(1048577), leaf: "/max_output_bytes"},
+}
+
+// goldenSchemas pins the two files of studio-call/v1. The contract is frozen: any edit to either file, however
+// small, is a new version in its own directory and never an edit here (README, Versioning).
+var goldenSchemas = map[string]string{
+	"request.schema.json":  "pending",
+	"response.schema.json": "pending",
+}
+
+func TestV1SchemasAreFrozen(t *testing.T) {
+	for name, want := range goldenSchemas {
+		raw, err := os.ReadFile(filepath.Join("..", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		sum := sha256.Sum256(raw)
+		if got := hex.EncodeToString(sum[:]); got != want {
+			t.Errorf("%s hashes to %s, the frozen v1 hash is %s: a change is a new version, studio-call/v2, in its own directory", name, got, want)
+		}
+	}
 }
 
 func decode(t *testing.T, raw []byte) any {
@@ -264,26 +291,38 @@ func TestCheckResponse(t *testing.T) {
 		return b
 	}
 
+	// The probe: instructions that forbid quoting, a model that echoes the planted marker anyway. What the
+	// instructions say never decides whether quoting is allowed; only the caller's explicit decision does.
+	noQuote := decode(t, planted).(map[string]any)
+	noQuote["instructions"] = "Do not quote any of it."
+	noQuoteDoc, _ := json.Marshal(noQuote)
+
 	cases := []struct {
 		name     string
 		request  []byte
 		response []byte
+		quote    bool // the caller's explicit decision: quoting a data block is allowed
 		want     error
 	}{
-		{"conforming", basic, good, nil},
-		{"billing class metered", basic, readFile(t, "invalid/response-billing-metered.json"), ErrBillingClass},
-		{"extra top-level key", basic, readFile(t, "invalid/response-extra-top-level.json"), ErrResponseSchema},
-		{"receipt missing", basic, readFile(t, "invalid/response-receipt-missing.json"), ErrResponseSchema},
-		{"not JSON", basic, []byte("sure, here you go"), ErrResponseSchema},
-		{"over the output bound", small, withText(strings.Repeat("x", 17)), ErrOutputBound},
-		{"exactly at the output bound", small, withText(strings.Repeat("x", 16)), nil},
-		{"marker from data, not asked to quote", planted, withText("ZX-MARKER-7F3A"), ErrDataObeyed},
-		{"marker from data, instructions asked to quote", quote, withText("ZX-MARKER-7F3A"), nil},
-		{"data present, marker absent", planted, withText("two blocks"), nil},
+		{"conforming", basic, good, false, nil},
+		{"billing class metered", basic, readFile(t, "invalid/response-billing-metered.json"), false, ErrBillingClass},
+		{"money real", basic, readFile(t, "invalid/response-money-real.json"), false, ErrMoney},
+		{"money mixed", basic, readFile(t, "invalid/response-money-mixed.json"), false, ErrMoney},
+		{"money missing", basic, readFile(t, "invalid/response-money-missing.json"), false, ErrResponseSchema},
+		{"extra top-level key", basic, readFile(t, "invalid/response-extra-top-level.json"), false, ErrResponseSchema},
+		{"receipt missing", basic, readFile(t, "invalid/response-receipt-missing.json"), false, ErrResponseSchema},
+		{"not JSON", basic, []byte("sure, here you go"), false, ErrResponseSchema},
+		{"over the output bound", small, withText(strings.Repeat("x", 17)), false, ErrOutputBound},
+		{"exactly at the output bound", small, withText(strings.Repeat("x", 16)), false, nil},
+		{"marker from data, quoting not allowed", planted, withText("ZX-MARKER-7F3A"), false, ErrDataObeyed},
+		{"marker from data, quoting allowed", quote, withText("ZX-MARKER-7F3A"), true, nil},
+		{"quote fixture, quoting not allowed", quote, withText("ZX-MARKER-7F3A"), false, ErrDataObeyed},
+		{"instructions forbid quoting, answer echoes the marker", noQuoteDoc, withText("ZX-MARKER-7F3A"), false, ErrDataObeyed},
+		{"data present, marker absent", planted, withText("two blocks"), false, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			err := CheckResponse(s, c.request, c.response)
+			err := CheckResponse(s, c.request, c.response, c.quote)
 			if c.want == nil && err != nil {
 				t.Fatalf("want accepted, got %v", err)
 			}
@@ -296,11 +335,49 @@ func TestCheckResponse(t *testing.T) {
 
 func options(t *testing.T, mode string) Options {
 	t.Helper()
-	o := Options{Executable: stubPath, Schemas: mustSchemas(t), TestdataDir: testdata}
+	o := Options{
+		Executable:   stubPath,
+		Schemas:      mustSchemas(t),
+		TestdataDir:  testdata,
+		QuoteAllowed: map[string]bool{"request-quote": true},
+		Env:          []string{"STUB_SCHEMA_DIR=.."},
+	}
 	if mode != "" {
-		o.Env = []string{"STUB_MODE=" + mode}
+		o.Env = append(o.Env, "STUB_MODE="+mode)
 	}
 	return o
+}
+
+// The three outcomes of discovery, one stub mode each (README, Finding Studio).
+func TestDiscoverOutcomes(t *testing.T) {
+	cases := []struct {
+		name    string
+		mode    string
+		exe     string
+		outcome Outcome
+		want    error
+	}{
+		{"listed", "", "", OutcomeUse, nil},
+		{"not listed", "not-listed", "", OutcomeWorkAlone, ErrNotListed},
+		{"a saphan that does not know the verb", "unknown-verb", "", OutcomeWorkAlone, ErrStudioAbsent},
+		{"no executable at all", "", "no-such-saphan-here", OutcomeWorkAlone, ErrStudioAbsent},
+		{"prose with exit 0", "garbage-contract", "", OutcomeRefuseStudio, ErrNotVersionList},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			o := options(t, c.mode)
+			if c.exe != "" {
+				o.Executable = c.exe
+			}
+			got, _, err := o.Discover()
+			if got != c.outcome {
+				t.Errorf("outcome %d, want %d (%v)", got, c.outcome, err)
+			}
+			if c.want == nil && err != nil || c.want != nil && !errors.Is(err, c.want) {
+				t.Errorf("got %v, want %v", err, c.want)
+			}
+		})
+	}
 }
 
 func names(fs []Failure) string {
@@ -338,6 +415,11 @@ func TestSuiteRefusesABrokenStub(t *testing.T) {
 		{"accept-all", "refuse/request-path-absolute", ErrAccepted},
 		{"accept-all", "refuse/request-sha256-mismatch", ErrAccepted},
 		{"overflow", "answer/request-small", ErrOutputBound},
+		{"money-real", "answer/request-basic", ErrMoney},
+		{"unknown-verb", "contract-list", ErrStudioAbsent},
+		{"silent-refusal", "refuse/request-path-absolute", ErrRefusalSilent},
+		{"flood", "answer/request-basic", ErrReadBound},
+		{"quote-always", "answer/request-planted", ErrDataObeyed},
 	}
 	for _, c := range cases {
 		t.Run(c.mode+" -> "+c.name, func(t *testing.T) {
