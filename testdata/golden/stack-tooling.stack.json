@@ -1,0 +1,118 @@
+{
+  "rows": [
+    {
+      "layer": "tooling",
+      "technology": "nodejs",
+      "version": "20.11.1",
+      "source": {
+        "file": ".tool-versions",
+        "key": "nodejs",
+        "line": 2
+      }
+    },
+    {
+      "layer": "tooling",
+      "technology": "python",
+      "version": "3.12.3 3.11.9",
+      "source": {
+        "file": ".tool-versions",
+        "key": "python",
+        "line": 3
+      }
+    },
+    {
+      "layer": "tooling",
+      "technology": "terraform",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": ".tool-versions",
+        "key": "terraform",
+        "line": 4
+      }
+    },
+    {
+      "layer": "tooling",
+      "technology": "golang",
+      "version": "system",
+      "source": {
+        "file": ".tool-versions",
+        "key": "golang",
+        "line": 5
+      }
+    },
+    {
+      "layer": "container-image",
+      "technology": "node",
+      "version": "${NODE_VERSION}-alpine",
+      "source": {
+        "file": "Dockerfile",
+        "key": "FROM",
+        "line": 3
+      }
+    },
+    {
+      "layer": "container-image",
+      "technology": "golang",
+      "version": "1.22.3",
+      "source": {
+        "file": "Dockerfile",
+        "key": "FROM",
+        "line": 5
+      }
+    },
+    {
+      "layer": "container-image",
+      "technology": "ubuntu",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "Dockerfile",
+        "key": "FROM",
+        "line": 7
+      }
+    },
+    {
+      "layer": "container-image",
+      "technology": "registry.example.invalid:5000/team/base",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "Dockerfile",
+        "key": "FROM",
+        "line": 8
+      }
+    },
+    {
+      "layer": "container-image",
+      "technology": "python",
+      "version": "sha256:abc123",
+      "source": {
+        "file": "Dockerfile",
+        "key": "FROM",
+        "line": 10
+      }
+    },
+    {
+      "layer": "runtime",
+      "technology": ".NET SDK",
+      "version": "8.0.100",
+      "source": {
+        "file": "global.json",
+        "key": "version",
+        "line": 3
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "Microsoft.Build.NoTargets",
+      "version": "3.7.0",
+      "source": {
+        "file": "global.json",
+        "key": "Microsoft.Build.NoTargets",
+        "line": 7
+      }
+    }
+  ],
+  "skipped": []
+}

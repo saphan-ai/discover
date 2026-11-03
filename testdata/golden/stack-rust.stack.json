@@ -1,0 +1,97 @@
+{
+  "rows": [
+    {
+      "layer": "language",
+      "technology": "Rust edition",
+      "version": "2021",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "edition",
+        "line": 3
+      }
+    },
+    {
+      "layer": "language",
+      "technology": "Rust",
+      "version": "1.75",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "rust-version",
+        "line": 4
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "serde",
+      "version": "1.0.197",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "serde",
+        "line": 7
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "tokio",
+      "version": "1",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "tokio",
+        "line": 8
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "local",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "local",
+        "line": 9
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "shared",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "shared",
+        "line": 10
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "regex",
+      "version": "1.10",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "regex",
+        "line": 12
+      }
+    },
+    {
+      "layer": "dev-dependency",
+      "technology": "criterion",
+      "version": "0.5.1",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "criterion",
+        "line": 16
+      }
+    },
+    {
+      "layer": "build",
+      "technology": "cc",
+      "version": "=1.0.90",
+      "source": {
+        "file": "Cargo.toml",
+        "key": "cc",
+        "line": 19
+      }
+    }
+  ],
+  "skipped": []
+}

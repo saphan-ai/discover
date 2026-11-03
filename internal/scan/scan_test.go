@@ -19,7 +19,7 @@ func TestRegistryNamesItsScannersInOrder(t *testing.T) {
 	for _, s := range scan.Scanners {
 		names = append(names, s.Name)
 	}
-	if want := []string{"inventory", "structure"}; !reflect.DeepEqual(names, want) {
+	if want := []string{"inventory", "structure", "stack"}; !reflect.DeepEqual(names, want) {
 		t.Fatalf("scanners = %q, want %q", names, want)
 	}
 }

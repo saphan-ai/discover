@@ -17,6 +17,7 @@ import (
 	"github.com/saphan-ai/discover/internal/manifest"
 	"github.com/saphan-ai/discover/internal/model"
 	"github.com/saphan-ai/discover/internal/scan/inventory"
+	"github.com/saphan-ai/discover/internal/scan/stack"
 	"github.com/saphan-ai/discover/internal/scan/structure"
 )
 
@@ -54,6 +55,7 @@ type Scanner struct {
 var Scanners = []Scanner{
 	{"inventory", runInventory},
 	{"structure", runStructure},
+	{"stack", runStack},
 }
 
 func runInventory(s *State) error {
@@ -69,6 +71,20 @@ func runInventory(s *State) error {
 
 func runStructure(s *State) error {
 	s.Repo.Structure = structure.Scan(s.Files)
+	return nil
+}
+
+func runStack(s *State) error {
+	limit := s.Opts.MaxBytes
+	if limit <= 0 {
+		limit = inventory.DefaultMaxBytes
+	}
+	rows, skipped := stack.Scan(s.Files, func(p string) ([]byte, error) {
+		b, _, err := s.Manifest.Read(p, limit)
+		return b, err
+	})
+	s.Repo.Stack = rows
+	s.Skipped = append(s.Skipped, skipped...)
 	return nil
 }
 

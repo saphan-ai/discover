@@ -1,0 +1,130 @@
+{
+  "rows": [
+    {
+      "layer": "runtime",
+      "technology": "Node.js",
+      "version": "v20.11.0",
+      "source": {
+        "file": ".nvmrc",
+        "line": 1
+      }
+    },
+    {
+      "layer": "package-manager",
+      "technology": "pnpm",
+      "version": "9.1.0",
+      "source": {
+        "file": "package.json",
+        "key": "packageManager",
+        "line": 4
+      }
+    },
+    {
+      "layer": "runtime",
+      "technology": "Node.js",
+      "version": "\u003e=20 \u003c23",
+      "source": {
+        "file": "package.json",
+        "key": "node",
+        "line": 6
+      }
+    },
+    {
+      "layer": "runtime",
+      "technology": "npm",
+      "version": "10.2.4",
+      "source": {
+        "file": "package.json",
+        "key": "npm",
+        "line": 7
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "express",
+      "version": "4.19.2",
+      "source": {
+        "file": "package.json",
+        "key": "express",
+        "line": 10
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "floaty",
+      "version": null,
+      "version_note": "not pinned",
+      "source": {
+        "file": "package.json",
+        "key": "floaty",
+        "line": 13
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "internal-lib",
+      "version": "git+https://github.com/example/internal-lib.git#v1.2.0",
+      "source": {
+        "file": "package.json",
+        "key": "internal-lib",
+        "line": 12
+      }
+    },
+    {
+      "layer": "dependency",
+      "technology": "react",
+      "version": "^19.1.0",
+      "source": {
+        "file": "package.json",
+        "key": "react",
+        "line": 11
+      }
+    },
+    {
+      "layer": "dev-dependency",
+      "technology": "typescript",
+      "version": "~5.4.0",
+      "source": {
+        "file": "package.json",
+        "key": "typescript",
+        "line": 16
+      }
+    },
+    {
+      "layer": "locked-dependency",
+      "technology": "express",
+      "version": "4.19.2",
+      "source": {
+        "file": "package-lock.json",
+        "key": "node_modules/express",
+        "line": 16
+      }
+    },
+    {
+      "layer": "locked-dependency",
+      "technology": "react",
+      "version": "19.1.2",
+      "source": {
+        "file": "package-lock.json",
+        "key": "node_modules/react",
+        "line": 19
+      }
+    },
+    {
+      "layer": "locked-dependency",
+      "technology": "typescript",
+      "version": "5.4.5",
+      "source": {
+        "file": "package-lock.json",
+        "key": "node_modules/typescript",
+        "line": 22
+      }
+    }
+  ],
+  "skipped": [
+    {
+      "path": "yarn.lock",
+      "reason": "lockfile format not read"
+    }
+  ]
+}
