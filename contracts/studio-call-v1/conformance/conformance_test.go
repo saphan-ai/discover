@@ -451,6 +451,7 @@ func TestDeadlineHoldsWhenADescendantKeepsThePipe(t *testing.T) {
 	start := time.Now()
 	got, _, err := o.FindStudio()
 	d := time.Since(start)
+	t.Logf("returned after %s: outcome %d, %v", d, got, err)
 	if got != OutcomeWorkAlone || !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("outcome %d, %v; want outcome %d past its deadline", got, err, OutcomeWorkAlone)
 	}
