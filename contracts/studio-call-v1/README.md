@@ -73,9 +73,11 @@ A caller handles three outcomes. It handles each one by name.
 
 1. **`studio-call/v1` is listed.** Use it, when the user has asked for it (see Consent).
 2. **Studio is absent or too old.** There is no `saphan` on `PATH`, or `saphan discover contract` **exits non-zero**
-   (a `saphan` too old to know the verb), or it exits 0 with a version list that does not hold `studio-call/v1`. The
-   caller works alone and says so. It does not retry, and it does not guess a newer or older contract.
-3. **The answer is not a version list.** The command exits 0 and prints prose, JSON, a blank line or nothing. The
+   (a `saphan` too old to know the verb), or it passes the caller's deadline without answering, or it exits 0 with a
+   version list that does not hold `studio-call/v1`. The caller works alone and says so. It does not retry, and it does
+   not guess a newer or older contract.
+3. **The answer is not a version list.** The command exits 0 and prints prose, JSON, a blank line or nothing, or more
+   than the caller's discovery read bound (64 KiB, which no version list reaches). The
    caller refuses Studio by name, tells the user, and never retries and never guesses what the answer meant. A caller
    the user explicitly asked to use Studio stops with that named refusal; it does not fall back to working alone
    without saying so.
@@ -94,6 +96,10 @@ output.
 A caller bounds the call. It sets its own deadline (the suite's harness allows two minutes per command) and stops the
 command when it passes. It reads at most `6 × max_output_bytes + 4096` bytes of standard output (JSON can spell one
 byte of text as six) and refuses the answer, and stops the command, when more arrives.
+
+The schema puts no length on `vendor`, `model` or `run_id`, so the 4096 is a rule of v1 that the text states and the
+schema does not: **a Studio keeps everything in the response except `text` within 4096 bytes on the wire.** A caller
+refuses a larger answer with `ErrReadBound` even when the schema accepts it; the answer is not a conforming one.
 
 ## Consent
 

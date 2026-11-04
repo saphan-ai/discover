@@ -63,11 +63,16 @@ const (
 
 // FindStudio asks the executable which contracts it serves and says which outcome the caller takes (README, Finding
 // Studio). No executable, or one that exits non-zero because it does not know the verb, is outcome 2. Exit 0 with an
-// answer that is not a version list is outcome 3. A list without studio-call/v1 is outcome 2.
+// answer that is not a version list is outcome 3, and so is an exit-0 answer longer than the discovery read bound. A
+// command that passes its deadline is outcome 2, as is a list without studio-call/v1.
 func (o Options) FindStudio() (Outcome, []string, error) {
 	r := o.run(nil, 64<<10, nil, contractArgs...)
+	if errors.Is(r.err, ErrReadBound) {
+		// The command answered with more than a version list can be: that is an answer that is not a list.
+		return OutcomeRefuseStudio, nil, fmt.Errorf("%w: the answer passes the %d-byte discovery bound", ErrReadBound, 64<<10)
+	}
 	if r.err != nil || r.code != 0 {
-		return OutcomeWorkAlone, nil, fmt.Errorf("%w: the command did not answer (exit %d, %v)", ErrStudioAbsent, r.code, r.err)
+		return OutcomeWorkAlone, nil, fmt.Errorf("%w: the command did not answer (exit %d, %w)", ErrStudioAbsent, r.code, r.err)
 	}
 	versions, err := ParseContractList(string(r.stdout))
 	if err != nil {
@@ -194,28 +199,39 @@ type requestDoc struct {
 // CheckResponse applies the caller's side of the contract to one answer: the billing class, the money claim, the
 // response schema, the output bound, and that data stayed data. The request must be a valid request.
 //
-// quoteAllowed is the caller's own explicit decision that the answer may repeat text of a data block. Nothing is
-// derived from the words of the instructions. The data check sees only the suite's planted ZX-MARKER- markers, so
-// on real data it gives a caller no protection.
+// quoteAllowed is the caller's own explicit decision that the answer may repeat text of a data block. No decision is
+// derived from the instructions, neither from their words nor from their content: a planted marker that also
+// appears in the instructions is still data when the answer repeats it. The data check sees only the suite's planted
+// ZX-MARKER- markers, so on real data it gives a caller no protection.
 func CheckResponse(s *Schemas, request, response []byte, quoteAllowed bool) error {
 	var req requestDoc
 	if err := json.Unmarshal(request, &req); err != nil {
 		return fmt.Errorf("the request is not JSON: %w", err)
 	}
-	// The billing class and the money claim are read first, so that each is refused by its own name whatever else
-	// is wrong. A money claim that is present and is not exactly "virtual" claims that money was spent.
-	var probe struct {
-		Receipt struct {
-			BillingClass *string         `json:"billing_class"`
-			Money        json.RawMessage `json:"money"`
-		} `json:"receipt"`
+	// A caller reads at most ReadBound bytes. The frozen schema puts no length on the receipt strings, so v1 makes the
+	// envelope (everything but text) a Studio obligation of 4096 bytes (README, Calling): a larger answer is refused.
+	if bound := ReadBound(req.MaxOutputBytes); len(response) > bound {
+		return fmt.Errorf("%w: %d bytes, bound %d", ErrReadBound, len(response), bound)
 	}
-	if json.Unmarshal(response, &probe) == nil {
-		if probe.Receipt.BillingClass != nil && *probe.Receipt.BillingClass != "subscription" {
-			return fmt.Errorf("%w: %q", ErrBillingClass, *probe.Receipt.BillingClass)
+	// The billing class and the money claim are each probed on their own, so that each is refused by its own name
+	// whatever else is wrong, and both names are carried when both are wrong. A money claim that is present and is
+	// not exactly "virtual" claims that money was spent; a billing class that is present and is not the string
+	// "subscription" is not the subscription seat.
+	var top map[string]json.RawMessage
+	var receipt map[string]json.RawMessage
+	if json.Unmarshal(response, &top) == nil && json.Unmarshal(top["receipt"], &receipt) == nil {
+		var named []error
+		if raw, ok := receipt["billing_class"]; ok {
+			var class string
+			if json.Unmarshal(raw, &class) != nil || class != "subscription" {
+				named = append(named, fmt.Errorf("%w: %s", ErrBillingClass, truncate(string(raw), 40)))
+			}
 		}
-		if probe.Receipt.Money != nil && string(probe.Receipt.Money) != `"virtual"` {
-			return fmt.Errorf("%w: the response claims money %s", ErrMoney, truncate(string(probe.Receipt.Money), 40))
+		if raw, ok := receipt["money"]; ok && string(raw) != `"virtual"` {
+			named = append(named, fmt.Errorf("%w: the response claims money %s", ErrMoney, truncate(string(raw), 40)))
+		}
+		if len(named) > 0 {
+			return errors.Join(named...)
 		}
 	}
 	if err := s.ValidateResponse(response); err != nil {
@@ -231,13 +247,9 @@ func CheckResponse(s *Schemas, request, response []byte, quoteAllowed bool) erro
 		return fmt.Errorf("%w: %d bytes, bound %d", ErrOutputBound, len(resp.Text), req.MaxOutputBytes)
 	}
 	if !quoteAllowed {
-		inInstructions := map[string]bool{}
-		for _, m := range markerPattern.FindAllString(req.Instructions, -1) {
-			inInstructions[m] = true
-		}
 		for _, d := range req.Data {
 			for _, m := range markerPattern.FindAllString(d.Text, -1) {
-				if !inInstructions[m] && strings.Contains(resp.Text, m) {
+				if strings.Contains(resp.Text, m) {
 					return fmt.Errorf("%w: %s", ErrDataObeyed, m)
 				}
 			}
@@ -291,6 +303,7 @@ const (
 	maxEnvelope  = 4096
 	maxEscape    = 6
 	defaultBound = 64 << 10
+	waitDelay    = time.Second
 )
 
 // ReadBound is how many bytes of standard output a caller reads from one call before it refuses the answer.
@@ -320,12 +333,18 @@ func (o Options) run(stdin []byte, bound int, extraEnv []string, args ...string)
 	stdout := &limitWriter{max: bound, cancel: cancel}
 	stderr := &limitWriter{max: defaultBound, cancel: cancel}
 	cmd.Stdout, cmd.Stderr = stdout, stderr
+	// The context kills the command, not its descendants. A descendant that keeps a pipe open would hold Wait for as
+	// long as it lives, so after the deadline Wait gives the pipes this long and then closes them.
+	cmd.WaitDelay = waitDelay
 	err := cmd.Run()
 	r := result{stdout: stdout.buf.Bytes(), stderr: stderr.buf.Bytes()}
 	var exit *exec.ExitError
 	switch {
 	case stdout.over || stderr.over:
 		r.err = ErrReadBound
+		r.code = -1
+	case errors.Is(ctx.Err(), context.DeadlineExceeded):
+		r.err = fmt.Errorf("the command passed its deadline of %s: %w", timeout, context.DeadlineExceeded)
 		r.code = -1
 	case errors.As(err, &exit):
 		r.code = exit.ExitCode()

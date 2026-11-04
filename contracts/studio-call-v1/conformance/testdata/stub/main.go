@@ -15,6 +15,10 @@
 //	money-real        the receipt claims money real
 //	obey-data         the answer repeats an instruction found inside a data block
 //	quote-always      the answer quotes every data block, whatever the caller allowed
+//	quote-by-word     the answer quotes when the instructions contain the word "quote", whatever the caller allowed
+//	flood-contract    the contract command answers with far more than a version list and exits 0
+//	hang-contract     the contract command never answers
+//	pipe-child        the contract command starts a descendant that keeps standard output open, and never answers
 //	accept-all        every request is answered, valid or not
 //	overflow          the answer is longer than max_output_bytes
 //	flood             the answer is far longer than any read bound
@@ -28,8 +32,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/saphan-ai/discover/contracts/studio-call-v1/conformance"
@@ -60,11 +66,25 @@ func main() {
 			fmt.Println("Studio is not signed in. Run the login command first.")
 		case "not-listed":
 			fmt.Println("other-thing/v1")
+		case "flood-contract":
+			fmt.Print(strings.Repeat("Studio is not signed in.\n", 4096))
+		case "hang-contract":
+			time.Sleep(time.Minute)
+		case "pipe-child":
+			// A descendant that outlives this process and keeps its standard output and error open.
+			child := exec.Command(os.Args[0], "__hold")
+			child.Stdout, child.Stderr = os.Stdout, os.Stderr
+			if err := child.Start(); err != nil {
+				os.Exit(1)
+			}
+			time.Sleep(time.Minute)
 		default:
 			fmt.Println("studio-call/v1")
 		}
 	case args == "studio call":
 		call(mode)
+	case args == "__hold":
+		time.Sleep(8 * time.Second)
 	default:
 		fmt.Fprintln(os.Stderr, "unknown command")
 		os.Exit(2)
@@ -113,7 +133,11 @@ func call(mode string) {
 		}
 	}
 
-	text := answer(req, os.Getenv("STUB_QUOTE") == "1" || mode == "quote-always")
+	quote := os.Getenv("STUB_QUOTE") == "1" || mode == "quote-always"
+	if mode == "quote-by-word" {
+		quote = strings.Contains(strings.ToLower(req.Instructions), "quote")
+	}
+	text := answer(req, quote)
 	switch mode {
 	case "obey-data":
 		for _, b := range req.Data {
