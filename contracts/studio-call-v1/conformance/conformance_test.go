@@ -1,6 +1,7 @@
 package conformance
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -14,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 const testdata = "../testdata"
@@ -63,7 +65,7 @@ func readFile(t *testing.T, rel string) []byte {
 
 func TestValidExamplesValidate(t *testing.T) {
 	s := mustSchemas(t)
-	for _, name := range []string{"request-basic", "request-planted", "request-quote", "request-small"} {
+	for _, name := range []string{"request-basic", "request-planted", "request-quote", "request-quote-ask", "request-small"} {
 		if err := s.ValidateRequest(readFile(t, "valid/"+name+".json")); err != nil {
 			t.Errorf("%s: want valid, got %v", name, err)
 		}
@@ -297,6 +299,42 @@ func TestCheckResponse(t *testing.T) {
 	noQuote["instructions"] = "Do not quote any of it."
 	noQuoteDoc, _ := json.Marshal(noQuote)
 
+	// withReceipt sets members of the receipt to raw JSON values, so a member can be given the wrong type.
+	withReceipt := func(members map[string]string) []byte {
+		doc := decode(t, good).(map[string]any)
+		rc := doc["receipt"].(map[string]any)
+		for k, v := range members {
+			rc[k] = json.RawMessage(v)
+		}
+		b, err := json.Marshal(doc)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+
+	// K3: the same marker in the instructions and in a data block. What the instructions contain decides nothing.
+	markerInBoth := decode(t, planted).(map[string]any)
+	markerInBoth["instructions"] = "Summarise. Reference: ZX-MARKER-7F3A"
+	markerInBothDoc, _ := json.Marshal(markerInBoth)
+
+	// K1: a schema-valid response whose receipt strings, not its text, are long.
+	// The text is "ok", inside the 16-byte bound of request-small, so only the receipt is long.
+	shortText := func(members map[string]string) []byte {
+		var doc map[string]any
+		_ = json.Unmarshal(withReceipt(members), &doc)
+		doc["text"] = "ok"
+		b, _ := json.Marshal(doc)
+		return b
+	}
+	longVendor := shortText(map[string]string{"vendor": `"` + strings.Repeat("v", 5000) + `"`})
+	// A response of exactly ReadBound(16) bytes: the padding is measured, not guessed.
+	atBound := shortText(map[string]string{"vendor": `"v"`})
+	atBound = shortText(map[string]string{"vendor": `"` + strings.Repeat("v", 1+ReadBound(16)-len(atBound)) + `"`})
+	if len(atBound) != ReadBound(16) {
+		t.Fatalf("the at-bound fixture is %d bytes, want %d", len(atBound), ReadBound(16))
+	}
+
 	cases := []struct {
 		name     string
 		request  []byte
@@ -319,6 +357,16 @@ func TestCheckResponse(t *testing.T) {
 		{"quote fixture, quoting not allowed", quote, withText("ZX-MARKER-7F3A"), false, ErrDataObeyed},
 		{"instructions forbid quoting, answer echoes the marker", noQuoteDoc, withText("ZX-MARKER-7F3A"), false, ErrDataObeyed},
 		{"data present, marker absent", planted, withText("two blocks"), false, nil},
+		// K3: the marker also appears in the instructions; the answer repeating it is still data obeyed.
+		{"marker in instructions and data, answer echoes it", markerInBothDoc, withText("ZX-MARKER-7F3A"), false, ErrDataObeyed},
+		// K1: the read bound holds whatever the schema allows in the receipt strings.
+		{"long vendor over the read bound", small, longVendor, false, ErrReadBound},
+		{"exactly at the read bound", small, atBound, false, nil},
+		// K2: each receipt claim is refused by its own name.
+		{"money wrong, billing right", basic, withReceipt(map[string]string{"money": `"real"`}), false, ErrMoney},
+		{"billing wrong, money right", basic, withReceipt(map[string]string{"billing_class": `"metered"`}), false, ErrBillingClass},
+		{"billing mistyped, money wrong", basic, withReceipt(map[string]string{"billing_class": `7`, "money": `"real"`}), false, ErrMoney},
+		{"money mistyped, billing wrong", basic, withReceipt(map[string]string{"billing_class": `"metered"`, "money": `7`}), false, ErrBillingClass},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -328,6 +376,30 @@ func TestCheckResponse(t *testing.T) {
 			}
 			if c.want != nil && !errors.Is(err, c.want) {
 				t.Fatalf("got %v, want %v", err, c.want)
+			}
+		})
+	}
+}
+
+// K2: when both claims are wrong, the refusal carries both names.
+func TestCheckResponseNamesBothClaims(t *testing.T) {
+	s := mustSchemas(t)
+	basic := readFile(t, "valid/request-basic.json")
+	doc := decode(t, readFile(t, "valid/response-basic.json")).(map[string]any)
+	rc := doc["receipt"].(map[string]any)
+	cases := map[string]map[string]any{
+		"both wrong":                   {"billing_class": "metered", "money": "real"},
+		"billing mistyped, money real": {"billing_class": 7, "money": "real"},
+	}
+	for name, members := range cases {
+		t.Run(name, func(t *testing.T) {
+			for k, v := range members {
+				rc[k] = v
+			}
+			raw, _ := json.Marshal(doc)
+			err := CheckResponse(s, basic, raw, false)
+			if !errors.Is(err, ErrBillingClass) || !errors.Is(err, ErrMoney) {
+				t.Fatalf("got %v, want both ErrBillingClass and ErrMoney", err)
 			}
 		})
 	}
@@ -346,6 +418,45 @@ func options(t *testing.T, mode string) Options {
 		o.Env = append(o.Env, "STUB_MODE="+mode)
 	}
 	return o
+}
+
+// K5: the two discovery answers the README names beyond the stub-mode table: exit-0 output over the discovery read
+// bound is outcome 3, and a discovery that passes its deadline is outcome 2.
+func TestFindStudioBoundAndDeadline(t *testing.T) {
+	t.Run("exit 0 over the read bound is outcome 3", func(t *testing.T) {
+		got, _, err := options(t, "flood-contract").FindStudio()
+		if got != OutcomeRefuseStudio || !errors.Is(err, ErrReadBound) {
+			t.Fatalf("outcome %d, %v; want outcome %d with ErrReadBound", got, err, OutcomeRefuseStudio)
+		}
+	})
+	t.Run("past the deadline is outcome 2", func(t *testing.T) {
+		o := options(t, "hang-contract")
+		o.Timeout = 500 * time.Millisecond
+		start := time.Now()
+		got, _, err := o.FindStudio()
+		if got != OutcomeWorkAlone || !errors.Is(err, ErrStudioAbsent) || !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("outcome %d, %v; want outcome %d with ErrStudioAbsent and a deadline", got, err, OutcomeWorkAlone)
+		}
+		if d := time.Since(start); d > 5*time.Second {
+			t.Fatalf("the deadline held after %s", d)
+		}
+	})
+}
+
+// K6: a descendant that keeps a standard-output pipe open must not hold the call past its deadline. The stub child
+// sleeps eight seconds with the pipe open; the call must return well before that.
+func TestDeadlineHoldsWhenADescendantKeepsThePipe(t *testing.T) {
+	o := options(t, "pipe-child")
+	o.Timeout = 500 * time.Millisecond
+	start := time.Now()
+	got, _, err := o.FindStudio()
+	d := time.Since(start)
+	if got != OutcomeWorkAlone || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("outcome %d, %v; want outcome %d past its deadline", got, err, OutcomeWorkAlone)
+	}
+	if limit := o.Timeout + 4*time.Second; d > limit {
+		t.Fatalf("the call returned after %s, bound %s", d, limit)
+	}
 }
 
 // The three outcomes of finding Studio, one stub mode each (README, Finding Studio).
@@ -420,6 +531,8 @@ func TestSuiteRefusesABrokenStub(t *testing.T) {
 		{"silent-refusal", "refuse/request-path-absolute", ErrRefusalSilent},
 		{"flood", "answer/request-basic", ErrReadBound},
 		{"quote-always", "answer/request-planted", ErrDataObeyed},
+		// K4: a stub that quotes because the instructions say "quote", though the caller did not allow it.
+		{"quote-by-word", "answer/request-quote-ask", ErrDataObeyed},
 	}
 	for _, c := range cases {
 		t.Run(c.mode+" -> "+c.name, func(t *testing.T) {
