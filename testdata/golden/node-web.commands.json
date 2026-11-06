@@ -1,0 +1,26 @@
+{
+  "entry_points": [],
+  "commands": [
+    {
+      "kind": "run",
+      "text": "npm run start",
+      "source": {
+        "file": "package.json",
+        "line": 5
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "npm run test",
+      "source": {
+        "file": "package.json",
+        "line": 6
+      },
+      "executed": false
+    }
+  ],
+  "ci": [],
+  "containers": [],
+  "skipped": []
+}

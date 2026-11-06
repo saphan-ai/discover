@@ -1,0 +1,11 @@
+services:
+  web:
+    image: nginx:1.27
+    ports:
+      - "80:80"
+  worker:
+    build: .
+    command: ["./worker", "--queue", "jobs"]
+  db:
+    image: postgres:16
+    command: postgres -c fsync=off

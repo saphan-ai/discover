@@ -1,0 +1,11 @@
+[package]
+name = "polybin"
+version = "0.1.0"
+
+[[bin]]
+name = "polybin-one"
+path = "src/one.rs"
+
+[[bin]]
+path = "src/two.rs"
+name = "polybin-two"

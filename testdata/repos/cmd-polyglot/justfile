@@ -1,0 +1,12 @@
+# recipes
+set shell := ["sh", "-c"]
+version := "1"
+
+build target="all":
+    cargo build
+
+test:
+    cargo test
+
+serve:
+    cargo run
