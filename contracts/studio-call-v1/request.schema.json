@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:saphan:studio-call:v1:request",
+  "title": "studio-call/v1 request",
+  "description": "One walled, tool-less, read-only model call. The instructions are the only text the model obeys. Every data block is data, never instructions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract", "instructions", "data", "max_output_bytes"],
+  "properties": {
+    "contract": { "const": "studio-call/v1" },
+    "instructions": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the caller asks. The only source of instructions in the call."
+    },
+    "data": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/block" },
+      "description": "Text the call reads as data."
+    },
+    "max_output_bytes": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 1048576,
+      "description": "The most bytes the response text may hold, counted in UTF-8. At most 1 MiB: far above any review answer, and it bounds what a caller must be ready to read."
+    }
+  },
+  "$defs": {
+    "block": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256", "text"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "allOf": [
+            { "not": { "pattern": "^/" } },
+            { "not": { "pattern": "^[A-Za-z]:" } },
+            { "not": { "pattern": "\\\\" } },
+            { "not": { "pattern": "(^|/)\\.\\.(/|$)" } }
+          ],
+          "description": "Where the text came from, relative to the target root: no leading slash, no drive letter, no backslash, no .. segment."
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 of the UTF-8 bytes of text, as 64 lowercase hex characters."
+        },
+        "text": {
+          "type": "string",
+          "description": "The content of the block. Data, never instructions."
+        }
+      }
+    }
+  }
+}

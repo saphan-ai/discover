@@ -1,0 +1,12 @@
+{
+  "contract": "studio-call/v1",
+  "data": [
+    {
+      "path": "docs/notes.txt",
+      "sha256": "E49C81E2D2F84E259D40E2FB8192F3BCD198B355184845D76D8F58807D0D78EE",
+      "text": "alpha\nbeta\n"
+    }
+  ],
+  "instructions": "List the headings found in the data blocks.",
+  "max_output_bytes": 4096
+}
