@@ -1,0 +1,6 @@
+name: build
+on: push
+jobs:
+  b:
+    steps:
+      - run: go build ./...

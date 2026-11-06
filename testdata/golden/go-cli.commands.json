@@ -1,0 +1,35 @@
+{
+  "entry_points": [
+    {
+      "kind": "main",
+      "name": "gocli",
+      "source": {
+        "file": "cmd/gocli/main.go",
+        "line": 10
+      }
+    }
+  ],
+  "commands": [
+    {
+      "kind": "build",
+      "text": "make build",
+      "source": {
+        "file": "Makefile",
+        "line": 1
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "make test",
+      "source": {
+        "file": "Makefile",
+        "line": 4
+      },
+      "executed": false
+    }
+  ],
+  "ci": [],
+  "containers": [],
+  "skipped": []
+}

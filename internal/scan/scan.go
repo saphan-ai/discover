@@ -16,6 +16,7 @@ import (
 	"github.com/saphan-ai/discover/internal/attest"
 	"github.com/saphan-ai/discover/internal/manifest"
 	"github.com/saphan-ai/discover/internal/model"
+	"github.com/saphan-ai/discover/internal/scan/commands"
 	"github.com/saphan-ai/discover/internal/scan/inventory"
 	"github.com/saphan-ai/discover/internal/scan/stack"
 	"github.com/saphan-ai/discover/internal/scan/structure"
@@ -56,6 +57,7 @@ var Scanners = []Scanner{
 	{"inventory", runInventory},
 	{"structure", runStructure},
 	{"stack", runStack},
+	{"commands", runCommands},
 }
 
 func runInventory(s *State) error {
@@ -85,6 +87,30 @@ func runStack(s *State) error {
 	})
 	s.Repo.Stack = rows
 	s.Skipped = append(s.Skipped, skipped...)
+	return nil
+}
+
+// runCommands cites the commands, entry points, CI and containers the files hold. It runs none of them. A file that is
+// already in Skipped keeps its first reason.
+func runCommands(s *State) error {
+	limit := s.Opts.MaxBytes
+	if limit <= 0 {
+		limit = inventory.DefaultMaxBytes
+	}
+	res := commands.Scan(s.Files, func(p string) ([]byte, error) {
+		b, _, err := s.Manifest.Read(p, limit)
+		return b, err
+	})
+	s.Repo.EntryPoints, s.Repo.Commands, s.Repo.CI, s.Repo.Containers = res.EntryPoints, res.Commands, res.CI, res.Containers
+	named := map[string]bool{}
+	for _, k := range s.Skipped {
+		named[k.Path] = true
+	}
+	for _, k := range res.Skipped {
+		if !named[k.Path] {
+			s.Skipped = append(s.Skipped, inventory.Skipped{Path: k.Path, Reason: k.Reason})
+		}
+	}
 	return nil
 }
 

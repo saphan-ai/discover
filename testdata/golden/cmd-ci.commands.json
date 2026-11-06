@@ -1,0 +1,120 @@
+{
+  "entry_points": [],
+  "commands": [
+    {
+      "kind": "build",
+      "text": "go build ./...",
+      "source": {
+        "file": ".gitea/workflows/build.yml",
+        "line": 6
+      },
+      "executed": false
+    },
+    {
+      "kind": "build",
+      "text": "make build",
+      "source": {
+        "file": ".github/workflows/ci.yml",
+        "line": 9
+      },
+      "executed": false
+    },
+    {
+      "kind": "lint",
+      "text": "go vet ./...",
+      "source": {
+        "file": ".github/workflows/ci.yml",
+        "line": 12
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "go test ./...",
+      "source": {
+        "file": ".github/workflows/ci.yml",
+        "line": 14
+      },
+      "executed": false
+    },
+    {
+      "kind": "lint",
+      "text": "npm run lint",
+      "source": {
+        "file": ".github/workflows/ci.yml",
+        "line": 15
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "make deps",
+      "source": {
+        "file": ".gitlab-ci.yml",
+        "line": 3
+      },
+      "executed": false
+    },
+    {
+      "kind": "build",
+      "text": "make build",
+      "source": {
+        "file": ".gitlab-ci.yml",
+        "line": 7
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "npm test",
+      "source": {
+        "file": ".gitlab-ci.yml",
+        "line": 9
+      },
+      "executed": false
+    },
+    {
+      "kind": "lint",
+      "text": "npm run lint",
+      "source": {
+        "file": ".gitlab-ci.yml",
+        "line": 10
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "go test ./...",
+      "source": {
+        "file": ".gitlab-ci.yml",
+        "line": 12
+      },
+      "executed": false
+    }
+  ],
+  "ci": [
+    {
+      "system": "gitea-actions",
+      "source": {
+        "file": ".gitea/workflows/build.yml",
+        "line": 1
+      }
+    },
+    {
+      "system": "github-actions",
+      "source": {
+        "file": ".github/workflows/ci.yml",
+        "line": 1
+      }
+    },
+    {
+      "system": "gitlab-ci",
+      "source": {
+        "file": ".gitlab-ci.yml",
+        "line": 1
+      }
+    }
+  ],
+  "containers": [],
+  "skipped": []
+}

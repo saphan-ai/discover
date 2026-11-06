@@ -1,0 +1,13 @@
+[project]
+name = "polytool"
+version = "0.1.0"
+
+[project.scripts]
+polytool = "polytool.cli:main"
+poly-serve = "polytool.serve:run"
+
+[tool.poetry.scripts]
+poly-old = "polytool.old:main"
+
+[tool.other]
+x = "y:z"

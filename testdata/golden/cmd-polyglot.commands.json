@@ -1,0 +1,243 @@
+{
+  "entry_points": [
+    {
+      "kind": "cli",
+      "name": "polybin-one",
+      "source": {
+        "file": "Cargo.toml",
+        "line": 5
+      }
+    },
+    {
+      "kind": "cli",
+      "name": "polybin-two",
+      "source": {
+        "file": "Cargo.toml",
+        "line": 9
+      }
+    },
+    {
+      "kind": "main",
+      "name": "tool",
+      "source": {
+        "file": "cmd/tool/main.go",
+        "line": 3
+      }
+    },
+    {
+      "kind": "cli",
+      "name": "poly-web",
+      "source": {
+        "file": "package.json",
+        "line": 5
+      }
+    },
+    {
+      "kind": "main",
+      "name": "pkg",
+      "source": {
+        "file": "pkg/__main__.py",
+        "line": 1
+      }
+    },
+    {
+      "kind": "cli",
+      "name": "polytool",
+      "source": {
+        "file": "pyproject.toml",
+        "line": 6
+      }
+    },
+    {
+      "kind": "cli",
+      "name": "poly-serve",
+      "source": {
+        "file": "pyproject.toml",
+        "line": 7
+      }
+    },
+    {
+      "kind": "cli",
+      "name": "poly-old",
+      "source": {
+        "file": "pyproject.toml",
+        "line": 10
+      }
+    },
+    {
+      "kind": "script",
+      "name": "tool",
+      "source": {
+        "file": "tool.py",
+        "line": 5
+      }
+    }
+  ],
+  "commands": [
+    {
+      "kind": "build",
+      "text": "make all",
+      "source": {
+        "file": "Makefile",
+        "line": 5
+      },
+      "executed": false
+    },
+    {
+      "kind": "build",
+      "text": "make build",
+      "source": {
+        "file": "Makefile",
+        "line": 7
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "make test",
+      "source": {
+        "file": "Makefile",
+        "line": 10
+      },
+      "executed": false
+    },
+    {
+      "kind": "lint",
+      "text": "make lint",
+      "source": {
+        "file": "Makefile",
+        "line": 13
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "make run",
+      "source": {
+        "file": "Makefile",
+        "line": 16
+      },
+      "executed": false
+    },
+    {
+      "kind": "build",
+      "text": "task build",
+      "source": {
+        "file": "Taskfile.yml",
+        "line": 7
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "task test",
+      "source": {
+        "file": "Taskfile.yml",
+        "line": 10
+      },
+      "executed": false
+    },
+    {
+      "kind": "lint",
+      "text": "task lint",
+      "source": {
+        "file": "Taskfile.yml",
+        "line": 13
+      },
+      "executed": false
+    },
+    {
+      "kind": "build",
+      "text": "just build",
+      "source": {
+        "file": "justfile",
+        "line": 5
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "just test",
+      "source": {
+        "file": "justfile",
+        "line": 8
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "just serve",
+      "source": {
+        "file": "justfile",
+        "line": 11
+      },
+      "executed": false
+    },
+    {
+      "kind": "build",
+      "text": "npm run build",
+      "source": {
+        "file": "package.json",
+        "line": 8
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "npm run start",
+      "source": {
+        "file": "package.json",
+        "line": 9
+      },
+      "executed": false
+    },
+    {
+      "kind": "test",
+      "text": "npm run test",
+      "source": {
+        "file": "package.json",
+        "line": 10
+      },
+      "executed": false
+    },
+    {
+      "kind": "lint",
+      "text": "npm run lint",
+      "source": {
+        "file": "package.json",
+        "line": 11
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "polytool",
+      "source": {
+        "file": "pyproject.toml",
+        "line": 6
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "poly-serve",
+      "source": {
+        "file": "pyproject.toml",
+        "line": 7
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "poly-old",
+      "source": {
+        "file": "pyproject.toml",
+        "line": 10
+      },
+      "executed": false
+    }
+  ],
+  "ci": [],
+  "containers": [],
+  "skipped": []
+}

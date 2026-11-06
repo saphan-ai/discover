@@ -1,0 +1,13 @@
+{
+  "name": "poly-web",
+  "version": "1.0.0",
+  "bin": {
+    "poly-web": "bin/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "start": "node server.js",
+    "test": "node --test",
+    "lint": "eslint ."
+  }
+}

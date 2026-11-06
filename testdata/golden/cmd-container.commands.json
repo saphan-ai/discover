@@ -1,0 +1,93 @@
+{
+  "entry_points": [],
+  "commands": [
+    {
+      "kind": "run",
+      "text": "ENTRYPOINT [\"/usr/local/bin/app\"]",
+      "source": {
+        "file": "Dockerfile",
+        "line": 8
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "CMD [\"--serve\", \"--port\", \"8080\"]",
+      "source": {
+        "file": "Dockerfile",
+        "line": 9
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "CMD [\"/x\"]",
+      "source": {
+        "file": "api/Dockerfile.dev",
+        "line": 2
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "[\"./worker\", \"--queue\", \"jobs\"]",
+      "source": {
+        "file": "docker-compose.yml",
+        "line": 8
+      },
+      "executed": false
+    },
+    {
+      "kind": "run",
+      "text": "postgres -c fsync=off",
+      "source": {
+        "file": "docker-compose.yml",
+        "line": 11
+      },
+      "executed": false
+    }
+  ],
+  "ci": [],
+  "containers": [
+    {
+      "kind": "dockerfile",
+      "image": "alpine:3.20",
+      "source": {
+        "file": "Dockerfile",
+        "line": 6
+      }
+    },
+    {
+      "kind": "dockerfile",
+      "image": "scratch",
+      "source": {
+        "file": "api/Dockerfile.dev",
+        "line": 1
+      }
+    },
+    {
+      "kind": "compose",
+      "image": "nginx:1.27",
+      "source": {
+        "file": "docker-compose.yml",
+        "line": 2
+      }
+    },
+    {
+      "kind": "compose",
+      "source": {
+        "file": "docker-compose.yml",
+        "line": 6
+      }
+    },
+    {
+      "kind": "compose",
+      "image": "postgres:16",
+      "source": {
+        "file": "docker-compose.yml",
+        "line": 9
+      }
+    }
+  ],
+  "skipped": []
+}
